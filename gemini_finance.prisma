@@ -1,0 +1,62 @@
+// prisma/schema/finance.prisma
+
+enum AccountType {
+  CASH
+  E_WALLET
+  CREDIT_CARD
+  INVESTMENT
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+model Account {
+  id           String      @id @default(cuid())
+  name         String
+  type         AccountType
+  balance      Decimal     @default(0) @db.Decimal(19, 4)
+  creditLimit  Decimal?    @db.Decimal(19, 4)
+  currency     String      @default("IDR")
+  
+  // Relations
+  outgoingTransfers Transaction[] @relation("SourceAccount")
+  incomingTransfers Transaction[] @relation("TargetAccount")
+  
+  // Metadata & Audit
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  deletedAt    DateTime?   // For soft deletes
+  createdById  String
+
+  @@index([createdById])
+  @@index([type])
+}
+
+model Transaction {
+  id             String          @id @default(cuid())
+  amount         Decimal         @db.Decimal(19, 4)
+  type           TransactionType
+  description    String?
+  categoryId     String?
+  
+  // The "Transfer" Logic
+  fromAccountId  String?
+  fromAccount    Account?        @relation("SourceAccount", fields: [fromAccountId], references: [id])
+  
+  toAccountId    String?
+  toAccount      Account?        @relation("TargetAccount", fields: [toAccountId], references: [id])
+  
+  // Tax & Audit
+  isTaxDeductible Boolean        @default(false)
+  taxYear        Int?
+  metadata       Json?           // For AI Receipt Vision data
+  createdAt      DateTime        @default(now())
+  createdById    String
+
+  @@index([createdById])
+  @@index([fromAccountId])
+  @@index([toAccountId])
+}

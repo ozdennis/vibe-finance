@@ -1,0 +1,116 @@
+// prisma/schema.prisma
+// Architecture: FBA-SOLID-SSOT | Multi-tenant ledger for Vibe Finance OS
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Account {
+  id           String      @id @default(cuid())
+  name         String
+  type         AccountType
+  balance      Decimal     @default(0) @db.Decimal(19, 4)
+  creditLimit  Decimal?    @db.Decimal(19, 4)
+  currency     String      @default("IDR")
+
+  // Relations
+  outgoingTransfers Transaction[] @relation("SourceAccount")
+  incomingTransfers Transaction[] @relation("TargetAccount")
+
+  // FBA Strict Audit Baseline (Mandatory)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  createdById  String
+  updatedById  String?
+  deletedAt    DateTime?   // For SSOT soft-deletes
+
+  @@index([createdById])
+  @@index([type])
+}
+
+model Transaction {
+  id             String          @id @default(cuid())
+  amount         Decimal         @db.Decimal(19, 4)
+  type           TransactionType
+  description    String?
+
+  // Transaction Date (for backdating - user selectable)
+  date           DateTime        @default(now())
+
+  // Category Relation
+  categoryId     String?
+  category       Category?       @relation(fields: [categoryId], references: [id])
+
+  // The "Transfer" Logic
+  fromAccountId  String?
+  fromAccount    Account?        @relation("SourceAccount", fields: [fromAccountId], references: [id])
+
+  toAccountId    String?
+  toAccount      Account?        @relation("TargetAccount", fields: [toAccountId], references: [id])
+
+  // Tax & AI Vision Metadata
+  isTaxDeductible Boolean        @default(false)
+  taxYear        Int?
+  metadata       Json?           // Stores Gemini Vision JSON payload
+
+  // FBA Strict Audit Baseline (Mandatory)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  createdById    String
+  updatedById    String?
+
+  @@index([createdById])
+  @@index([fromAccountId])
+  @@index([toAccountId])
+  @@index([date])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  action     String   // e.g., "BALANCE_OVERRIDE", "TRANSACTION_DELETE"
+  model      String   // e.g., "Account", "Transaction"
+  recordId   String
+  payload    Json     // Before/after values
+  reason     String?  // User-provided reason
+
+  createdAt  DateTime @default(now())
+  createdById String
+
+  @@index([createdById])
+  @@index([model, recordId])
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   // FOOD, TRANSPORT, etc.
+  color       String?  // Tailwind class or hex
+  icon        String?  // Lucide icon name
+
+  transactions Transaction[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  createdById  String
+
+  @@unique([name, createdById])
+  @@index([createdById])
+}
+
+enum AccountType {
+  CASH
+  E_WALLET
+  CREDIT_CARD
+  INVESTMENT
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}

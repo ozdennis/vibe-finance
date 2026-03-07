@@ -1,0 +1,77 @@
+// prisma/schema/finance.prisma
+// Architecture: FBA-SOLID-SSOT | Multi-tenant ledger for Vibe Finance OS
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AccountType {
+  CASH
+  E_WALLET
+  CREDIT_CARD
+  INVESTMENT
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+model Account {
+  id           String      @id @default(cuid())
+  name         String
+  type         AccountType
+  balance      Decimal     @default(0) @db.Decimal(19, 4)
+  creditLimit  Decimal?    @db.Decimal(19, 4)
+  currency     String      @default("IDR")
+
+  // Relations
+  outgoingTransfers Transaction[] @relation("SourceAccount")
+  incomingTransfers Transaction[] @relation("TargetAccount")
+
+  // FBA Strict Audit Baseline (Mandatory)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  createdById  String
+  updatedById  String?
+  deletedAt    DateTime?   // For SSOT soft-deletes
+
+  @@index([createdById])
+  @@index([type])
+}
+
+model Transaction {
+  id             String          @id @default(cuid())
+  amount         Decimal         @db.Decimal(19, 4)
+  type           TransactionType
+  description    String?
+  categoryId     String?
+
+  // The "Transfer" Logic
+  fromAccountId  String?
+  fromAccount    Account?        @relation("SourceAccount", fields: [fromAccountId], references: [id])
+
+  toAccountId    String?
+  toAccount      Account?        @relation("TargetAccount", fields: [toAccountId], references: [id])
+
+  // Tax & AI Vision Metadata
+  isTaxDeductible Boolean        @default(false)
+  taxYear        Int?
+  metadata       Json?           // Stores Gemini Vision JSON payload
+
+  // FBA Strict Audit Baseline (Mandatory)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  createdById    String
+  updatedById    String?
+
+  @@index([createdById])
+  @@index([fromAccountId])
+  @@index([toAccountId])
+}
