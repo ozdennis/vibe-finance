@@ -45,6 +45,8 @@ export default function SettingsPage() {
     type: "CASH" as "CASH" | "E_WALLET" | "CREDIT_CARD" | "INVESTMENT",
     balance: "",
     creditLimit: "",
+    statementDay: "",
+    dueDay: "",
   });
   const [categoryFormData, setCategoryFormData] = useState({
     name: "",
@@ -79,6 +81,8 @@ export default function SettingsPage() {
       type: accountFormData.type,
       balance: parseFloat(accountFormData.balance) || 0,
       creditLimit: accountFormData.creditLimit ? parseFloat(accountFormData.creditLimit) : undefined,
+      statementDay: accountFormData.statementDay ? parseInt(accountFormData.statementDay) : undefined,
+      dueDay: accountFormData.dueDay ? parseInt(accountFormData.dueDay) : undefined,
       userId: MOCK_USER_ID,
     };
 
@@ -105,6 +109,8 @@ export default function SettingsPage() {
       type: account.type as any,
       balance: account.balance.toString(),
       creditLimit: account.creditLimit?.toString() || "",
+      statementDay: (account as any).statementDay?.toString() || "",
+      dueDay: (account as any).dueDay?.toString() || "",
     });
     setIsAccountModalOpen(true);
   };
@@ -120,7 +126,7 @@ export default function SettingsPage() {
   };
 
   const resetAccountForm = () => {
-    setAccountFormData({ name: "", type: "CASH", balance: "", creditLimit: "" });
+    setAccountFormData({ name: "", type: "CASH", balance: "", creditLimit: "", statementDay: "", dueDay: "" });
     setEditingAccount(null);
   };
 
@@ -395,20 +401,66 @@ export default function SettingsPage() {
               </div>
 
               {accountFormData.type === "CREDIT_CARD" && (
-                <div>
-                  <label className="text-slate-400 text-xs mb-2 block">
-                    Credit Limit
-                  </label>
-                  <input
-                    type="number"
-                    value={accountFormData.creditLimit}
-                    onChange={(e) =>
-                      setAccountFormData({ ...accountFormData, creditLimit: e.target.value })
-                    }
-                    placeholder="0"
-                    className="w-full bg-slate-800 p-3 rounded-xl text-white outline-none focus:ring-2 focus:ring-emerald-500/50"
-                  />
-                </div>
+                <>
+                  <div>
+                    <label className="text-slate-400 text-xs mb-2 block">
+                      Credit Limit
+                    </label>
+                    <input
+                      type="number"
+                      value={accountFormData.creditLimit}
+                      onChange={(e) =>
+                        setAccountFormData({ ...accountFormData, creditLimit: e.target.value })
+                      }
+                      placeholder="0"
+                      className="w-full bg-slate-800 p-3 rounded-xl text-white outline-none focus:ring-2 focus:ring-emerald-500/50"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-slate-400 text-xs mb-2 block">
+                        Statement Day
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="31"
+                        value={accountFormData.statementDay}
+                        onChange={(e) =>
+                          setAccountFormData({ ...accountFormData, statementDay: e.target.value })
+                        }
+                        placeholder="5"
+                        className="w-full bg-slate-800 p-3 rounded-xl text-white outline-none focus:ring-2 focus:ring-emerald-500/50"
+                      />
+                      <p className="text-slate-500 text-xs mt-1">Day of month</p>
+                    </div>
+
+                    <div>
+                      <label className="text-slate-400 text-xs mb-2 block">
+                        Due Day
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="31"
+                        value={accountFormData.dueDay}
+                        onChange={(e) =>
+                          setAccountFormData({ ...accountFormData, dueDay: e.target.value })
+                        }
+                        placeholder="15"
+                        className="w-full bg-slate-800 p-3 rounded-xl text-white outline-none focus:ring-2 focus:ring-emerald-500/50"
+                      />
+                      <p className="text-slate-500 text-xs mt-1">Day of month</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-800/50 p-3 rounded-xl">
+                    <p className="text-slate-400 text-xs">
+                      <strong className="text-slate-300">Example:</strong> Statement on 5th, Due on 15th = 10 days grace period
+                    </p>
+                  </div>
+                </>
               )}
 
               <button
