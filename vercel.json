@@ -3,9 +3,5 @@
   "buildCommand": "npx prisma generate && next build",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "outputDirectory": ".next",
-  "env": {
-    "DIRECT_URL": "@direct_url",
-    "DATABASE_URL": "@database_url"
-  }
+  "outputDirectory": ".next"
 }
