@@ -198,6 +198,171 @@ export async function getYearToDateSummary(userId: string) {
   };
 }
 
+// ============================================
+// CREDIT CARD STATEMENT QUERIES
+// ============================================
+
+/**
+ * Get current statement with calculated "unbilled" amount
+ * Unbilled = Current Balance - Last Statement Balance
+ */
+export async function getCreditCardStatus(accountId: string, userId: string) {
+  const now = new Date();
+
+  // Get account details
+  const account = await db.account.findFirst({
+    where: { id: accountId, createdById: userId, type: "CREDIT_CARD" },
+    include: {
+      statements: {
+        orderBy: { statementDate: "desc" },
+        take: 1,
+      },
+    },
+  });
+
+  if (!account) {
+    return null;
+  }
+
+  const currentBalance = Number(account.balance);
+  const lastStatement = account.statements[0];
+
+  // Calculate unbilled amount (spending since last statement)
+  let unbilledAmount = 0;
+  let statementBalance = 0;
+  let dueDate: Date | null = null;
+  let daysUntilDue: number | null = null;
+  let isPaid = false;
+
+  if (lastStatement) {
+    statementBalance = Number(lastStatement.statementBalance);
+    dueDate = lastStatement.dueDate;
+    isPaid = lastStatement.isPaid;
+
+    // Unbilled = Current balance - What was on the statement
+    // (This represents new charges since statement date)
+    unbilledAmount = Math.max(0, currentBalance - statementBalance);
+
+    // Calculate days until due
+    if (dueDate) {
+      const diffTime = dueDate.getTime() - now.getTime();
+      daysUntilDue = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+  } else {
+    // No statement yet - everything is unbilled
+    unbilledAmount = currentBalance;
+  }
+
+  // Calculate next statement date
+  let nextStatementDate: Date | null = null;
+  if (account.statementDay) {
+    const year = now.getFullYear();
+    const month = now.getMonth();
+
+    // If today is past statement day, next statement is next month
+    if (now.getDate() > account.statementDay) {
+      nextStatementDate = new Date(year, month + 1, account.statementDay);
+    } else {
+      nextStatementDate = new Date(year, month, account.statementDay);
+    }
+  }
+
+  return {
+    accountId: account.id,
+    name: account.name,
+    currentBalance,
+    creditLimit: account.creditLimit ? Number(account.creditLimit) : null,
+    statementBalance,
+    unbilledAmount,
+    dueDate,
+    daysUntilDue,
+    isPaid,
+    statementDay: account.statementDay,
+    dueDay: account.dueDay,
+    nextStatementDate,
+    utilizationRate: account.creditLimit
+      ? (currentBalance / Number(account.creditLimit)) * 100
+      : null,
+  };
+}
+
+/**
+ * Get all credit cards with their statement status
+ */
+export async function getAllCreditCardStatus(userId: string) {
+  const creditCards = await db.account.findMany({
+    where: {
+      createdById: userId,
+      type: "CREDIT_CARD",
+      deletedAt: null,
+    },
+    include: {
+      statements: {
+        orderBy: { statementDate: "desc" },
+        take: 1,
+      },
+    },
+  });
+
+  const now = new Date();
+
+  return creditCards.map((account) => {
+    const currentBalance = Number(account.balance);
+    const lastStatement = account.statements[0];
+
+    let unbilledAmount = 0;
+    let statementBalance = 0;
+    let dueDate: Date | null = null;
+    let daysUntilDue: number | null = null;
+    let isPaid = false;
+
+    if (lastStatement) {
+      statementBalance = Number(lastStatement.statementBalance);
+      dueDate = lastStatement.dueDate;
+      isPaid = lastStatement.isPaid;
+      unbilledAmount = Math.max(0, currentBalance - statementBalance);
+
+      if (dueDate) {
+        const diffTime = dueDate.getTime() - now.getTime();
+        daysUntilDue = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      }
+    } else {
+      unbilledAmount = currentBalance;
+    }
+
+    // Calculate next statement date
+    let nextStatementDate: Date | null = null;
+    if (account.statementDay) {
+      const year = now.getFullYear();
+      const month = now.getMonth();
+
+      if (now.getDate() > account.statementDay) {
+        nextStatementDate = new Date(year, month + 1, account.statementDay);
+      } else {
+        nextStatementDate = new Date(year, month, account.statementDay);
+      }
+    }
+
+    return {
+      accountId: account.id,
+      name: account.name,
+      currentBalance,
+      creditLimit: account.creditLimit ? Number(account.creditLimit) : null,
+      statementBalance,
+      unbilledAmount,
+      dueDate,
+      daysUntilDue,
+      isPaid,
+      statementDay: account.statementDay,
+      dueDay: account.dueDay,
+      nextStatementDate,
+      utilizationRate: account.creditLimit
+        ? (currentBalance / Number(account.creditLimit)) * 100
+        : null,
+    };
+  });
+}
+
 /**
  * Gets account balance history for charts
  */

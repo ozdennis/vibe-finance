@@ -11,6 +11,8 @@ interface Account {
   type: string;
   balance: number;
   creditLimit?: number | null;
+  statementDay?: number | null;
+  dueDay?: number | null;
 }
 
 interface AccountManagerProps {
@@ -33,6 +35,8 @@ export function AccountManager({ accounts, userId }: AccountManagerProps) {
     type: "CASH" as "CASH" | "E_WALLET" | "CREDIT_CARD" | "INVESTMENT",
     balance: "",
     creditLimit: "",
+    statementDay: "",
+    dueDay: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,6 +47,8 @@ export function AccountManager({ accounts, userId }: AccountManagerProps) {
       type: formData.type,
       balance: parseFloat(formData.balance) || 0,
       creditLimit: formData.creditLimit ? parseFloat(formData.creditLimit) : undefined,
+      statementDay: formData.statementDay ? parseInt(formData.statementDay) : undefined,
+      dueDay: formData.dueDay ? parseInt(formData.dueDay) : undefined,
       userId,
     };
 
@@ -68,6 +74,8 @@ export function AccountManager({ accounts, userId }: AccountManagerProps) {
       type: account.type as any,
       balance: account.balance.toString(),
       creditLimit: account.creditLimit?.toString() || "",
+      statementDay: account.statementDay?.toString() || "",
+      dueDay: account.dueDay?.toString() || "",
     });
     setIsOpen(true);
   };
@@ -82,7 +90,7 @@ export function AccountManager({ accounts, userId }: AccountManagerProps) {
   };
 
   const resetForm = () => {
-    setFormData({ name: "", type: "CASH", balance: "", creditLimit: "" });
+    setFormData({ name: "", type: "CASH", balance: "", creditLimit: "", statementDay: "", dueDay: "" });
     setEditingAccount(null);
   };
 
@@ -180,20 +188,66 @@ export function AccountManager({ accounts, userId }: AccountManagerProps) {
               </div>
 
               {formData.type === "CREDIT_CARD" && (
-                <div>
-                  <label className="text-slate-400 text-xs mb-2 block">
-                    Credit Limit
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.creditLimit}
-                    onChange={(e) =>
-                      setFormData({ ...formData, creditLimit: e.target.value })
-                    }
-                    placeholder="0"
-                    className="w-full bg-slate-800 p-3 rounded-xl text-white outline-none focus:ring-2 focus:ring-emerald-500/50"
-                  />
-                </div>
+                <>
+                  <div>
+                    <label className="text-slate-400 text-xs mb-2 block">
+                      Credit Limit
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.creditLimit}
+                      onChange={(e) =>
+                        setFormData({ ...formData, creditLimit: e.target.value })
+                      }
+                      placeholder="0"
+                      className="w-full bg-slate-800 p-3 rounded-xl text-white outline-none focus:ring-2 focus:ring-emerald-500/50"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-slate-400 text-xs mb-2 block">
+                        Statement Day
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="31"
+                        value={formData.statementDay}
+                        onChange={(e) =>
+                          setFormData({ ...formData, statementDay: e.target.value })
+                        }
+                        placeholder="5"
+                        className="w-full bg-slate-800 p-3 rounded-xl text-white outline-none focus:ring-2 focus:ring-emerald-500/50"
+                      />
+                      <p className="text-slate-500 text-xs mt-1">Day of month</p>
+                    </div>
+
+                    <div>
+                      <label className="text-slate-400 text-xs mb-2 block">
+                        Due Day
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="31"
+                        value={formData.dueDay}
+                        onChange={(e) =>
+                          setFormData({ ...formData, dueDay: e.target.value })
+                        }
+                        placeholder="15"
+                        className="w-full bg-slate-800 p-3 rounded-xl text-white outline-none focus:ring-2 focus:ring-emerald-500/50"
+                      />
+                      <p className="text-slate-500 text-xs mt-1">Day of month</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-800/50 p-3 rounded-xl">
+                    <p className="text-slate-400 text-xs">
+                      <strong className="text-slate-300">Example:</strong> Statement on 5th, Due on 15th = 10 days grace period
+                    </p>
+                  </div>
+                </>
               )}
 
               <button

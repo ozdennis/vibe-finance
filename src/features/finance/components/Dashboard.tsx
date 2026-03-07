@@ -1,11 +1,12 @@
 // src/features/finance/components/Dashboard.tsx
 import { Suspense } from "react";
-import { getNetLiquidity, getCategories, getYearToDateSummary, getMonthlyTrend, getRecentTransactions } from "../server/queries";
+import { getNetLiquidity, getCategories, getYearToDateSummary, getMonthlyTrend, getRecentTransactions, getAllCreditCardStatus } from "../server/queries";
 import { NetLiquidityHero } from "./NetLiquidityHero";
 import { AccountGrid, AccountGridSkeleton } from "./AccountGrid";
 import { TaxMeter, TaxMeterSkeleton } from "./TaxMeter";
 import { MonthlyTrendChart, MonthlyTrendChartSkeleton } from "./MonthlyTrendChart";
 import { TransactionHistory, TransactionHistorySkeleton } from "./TransactionHistory";
+import { CreditCardWidget, CreditCardWidgetSkeleton } from "./CreditCardWidget";
 import { QuickLogDrawer } from "./QuickLogDrawer";
 import { PWAProvider } from "./PWAProvider";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -37,14 +38,16 @@ export default async function Dashboard({ userId }: DashboardProps) {
   let projectedTax = 0;
   let paidTax = 0;
   let transactions: any[] = [];
+  let creditCards: any[] = [];
 
   try {
-    const [liquidityData, categoriesData, taxData, trendData, transactionsData] = await Promise.all([
+    const [liquidityData, categoriesData, taxData, trendData, transactionsData, creditCardData] = await Promise.all([
       getNetLiquidity(userId),
       getCategories(userId),
       getYearToDateSummary(userId),
       getMonthlyTrend(userId, 6),
       getRecentTransactions(userId, 10),
+      getAllCreditCardStatus(userId),
     ]);
     accounts = liquidityData.accounts;
     netLiquidity = liquidityData.netLiquidity;
@@ -53,6 +56,7 @@ export default async function Dashboard({ userId }: DashboardProps) {
     categories = categoriesData;
     yearlyIncome = taxData.totalIncome;
     transactions = transactionsData;
+    creditCards = creditCardData;
 
     // Calculate projected tax (simplified: 12% effective rate projection)
     const monthlyAverage = yearlyIncome / 6; // Based on 6 months of data
@@ -127,6 +131,15 @@ export default async function Dashboard({ userId }: DashboardProps) {
             <MonthlyTrendChart userId={userId} months={6} />
           </ErrorBoundary>
         </Suspense>
+
+        {/* Credit Card Widget */}
+        {creditCards.length > 0 && (
+          <Suspense fallback={<CreditCardWidgetSkeleton />}>
+            <ErrorBoundary name="CreditCardWidget">
+              <CreditCardWidget cards={creditCards} />
+            </ErrorBoundary>
+          </Suspense>
+        )}
 
         {/* Transaction History */}
         <ErrorBoundary name="TransactionHistory">
