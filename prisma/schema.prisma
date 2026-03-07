@@ -19,9 +19,14 @@ model Account {
   creditLimit  Decimal?    @db.Decimal(19, 4)
   currency     String      @default("IDR")
 
+  // Credit Card Billing Cycle (only for CREDIT_CARD type)
+  statementDay    Int?     // Day of month when statement is generated (e.g., 5)
+  dueDay          Int?     // Day of month when payment is due (e.g., 15)
+
   // Relations
   outgoingTransfers Transaction[] @relation("SourceAccount")
   incomingTransfers Transaction[] @relation("TargetAccount")
+  statements        CreditCardStatement[]
 
   // FBA Strict Audit Baseline (Mandatory)
   createdAt    DateTime    @default(now())
@@ -32,6 +37,36 @@ model Account {
 
   @@index([createdById])
   @@index([type])
+}
+
+// Credit Card Statement Tracking
+model CreditCardStatement {
+  id              String   @id @default(cuid())
+  accountId       String
+  account         Account  @relation(fields: [accountId], references: [id])
+
+  // Statement Period
+  statementDate   DateTime // When statement was generated
+  startDate       DateTime // Start of billing period
+  endDate         DateTime // End of billing period (statement date)
+  dueDate         DateTime // Payment due date
+
+  // Amounts
+  statementBalance Decimal @db.Decimal(19, 4) // Total balance at statement date
+  minimumPayment   Decimal? @db.Decimal(19, 4) // Minimum payment required
+  totalPayment     Decimal  @default(0) @db.Decimal(19, 4) // Amount paid so far
+
+  // Status
+  isPaid          Boolean  @default(false)
+  paidAt          DateTime?
+
+  // Audit
+  createdAt       DateTime @default(now())
+  createdById     String
+
+  @@index([accountId])
+  @@index([createdById])
+  @@index([dueDate])
 }
 
 model Transaction {
