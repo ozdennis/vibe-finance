@@ -14,9 +14,26 @@ export async function createCategory(data: {
   userId: string;
 }) {
   try {
+    const normalizedName = data.name.toUpperCase().trim();
+
+    // Check if category already exists
+    const existing = await db.category.findFirst({
+      where: {
+        name: normalizedName,
+        createdById: data.userId,
+      },
+    });
+
+    if (existing) {
+      return {
+        success: false,
+        error: `Category "${normalizedName}" already exists`,
+      };
+    }
+
     const category = await db.category.create({
       data: {
-        name: data.name.toUpperCase(),
+        name: normalizedName,
         color: data.color,
         icon: data.icon,
         createdById: data.userId,
@@ -26,7 +43,15 @@ export async function createCategory(data: {
     revalidatePath("/");
     return { success: true, data: category };
   } catch (error) {
+    console.error("createCategory error:", error);
     if (error instanceof Error) {
+      // Check for Prisma unique constraint error
+      if (error.message.includes("Unique constraint")) {
+        return {
+          success: false,
+          error: `Category "${data.name.toUpperCase().trim()}" already exists`,
+        };
+      }
       return { success: false, error: error.message };
     }
     return { success: false, error: "Failed to create category" };
