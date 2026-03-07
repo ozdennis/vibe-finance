@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Drawer } from "vaul";
 import { useForm } from "react-hook-form";
 import { Plus, X, Camera, Upload } from "lucide-react";
@@ -33,6 +34,7 @@ interface FormData {
 }
 
 export function QuickLogDrawer({ accounts, categories }: QuickLogDrawerProps) {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -155,11 +157,11 @@ export function QuickLogDrawer({ accounts, categories }: QuickLogDrawerProps) {
           TRANSFER: `✅ Transfer of Rp ${Number(data.amount).toLocaleString('id-ID')} completed!`,
         };
         alert(messages[data.type]);
-        
+
         setIsOpen(false);
         reset();
-        // Reload to show updated balances
-        window.location.reload();
+        // Refresh server data and re-render
+        router.refresh();
       } else {
         // Show specific error
         alert('❌ ' + result.error);

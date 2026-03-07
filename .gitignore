@@ -39,6 +39,8 @@ Thumbs.db
 # Testing
 test-results/
 playwright-report/
+test/
+.md
 
 # Vercel
 .vercel
@@ -49,3 +51,6 @@ logs/
 
 # Prisma
 prisma/migrations/
+
+.vercel
+.env*.local
