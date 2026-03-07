@@ -127,6 +127,75 @@ export async function deleteAccount(accountId: string, userId: string) {
 }
 
 /**
+ * Delete multiple accounts (soft delete)
+ */
+export async function deleteManyAccounts(accountIds: string[], userId: string) {
+  try {
+    if (!accountIds.length) {
+      throw new Error("No accounts selected");
+    }
+
+    // Verify all accounts exist and belong to user
+    const accounts = await db.account.findMany({
+      where: {
+        id: { in: accountIds },
+        createdById: userId,
+      },
+    });
+
+    if (accounts.length === 0) {
+      throw new Error("No accounts found");
+    }
+
+    const results = {
+      success: true,
+      deleted: 0,
+      failed: 0,
+      errors: [] as string[],
+    };
+
+    // Check for transactions on each account
+    for (const account of accounts) {
+      const transactionCount = await db.transaction.count({
+        where: {
+          OR: [{ fromAccountId: account.id }, { toAccountId: account.id }],
+        },
+      });
+
+      if (transactionCount > 0) {
+        results.failed++;
+        results.errors.push(
+          `Cannot delete "${account.name}" - it has ${transactionCount} transaction(s)`
+        );
+        continue;
+      }
+
+      // Soft delete
+      await db.account.update({
+        where: { id: account.id },
+        data: {
+          deletedAt: new Date(),
+          updatedById: userId,
+        },
+      });
+
+      results.deleted++;
+    }
+
+    revalidatePath("/");
+    return {
+      ...results,
+      success: results.failed === 0,
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: "Failed to delete accounts" };
+  }
+}
+
+/**
  * Hard delete an account (for cleanup only)
  */
 export async function hardDeleteAccount(accountId: string, userId: string) {

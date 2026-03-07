@@ -56,13 +56,13 @@ export function CategorySearch({
 
   return (
     <div className="relative">
-      <label className="text-slate-400 text-xs mb-2 block">Category</label>
+      <label className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-3 block">Category</label>
 
       {/* Search Input */}
-      <div className="relative">
+      <div className="relative group">
         <Search
           size={18}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+          className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-indigo-400 transition-colors"
         />
         <input
           type="text"
@@ -73,46 +73,49 @@ export function CategorySearch({
           }}
           onFocus={() => setIsOpen(true)}
           placeholder={selectedCategory?.name || "Search category..."}
-          className="w-full bg-slate-800 p-4 pl-10 rounded-xl text-white outline-none focus:ring-2 focus:ring-emerald-500/50"
+          className="w-full bg-zinc-900/50 border border-white/10 p-4 pl-12 rounded-2xl text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-zinc-600 shadow-inner"
         />
       </div>
 
       {/* Dropdown Results */}
       {isOpen && (
-        <div className="absolute z-50 w-full mt-2 bg-slate-800 rounded-xl border border-slate-700 shadow-2xl max-h-60 overflow-y-auto">
+        <div className="absolute z-50 w-full mt-2 glass-panel rounded-2xl border border-white/10 shadow-2xl max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
           {filteredCategories.length === 0 ? (
-            <div className="p-4 text-center text-slate-500 text-sm">
+            <div className="p-4 text-center text-zinc-500 text-sm font-medium">
               No categories found
             </div>
           ) : (
-            filteredCategories.map((category) => (
-              <button
-                key={category.id}
-                type="button"
-                onClick={() => handleCategorySelect(category.id)}
-                className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-700 transition-colors text-left ${
-                  selectedId === category.id ? "bg-slate-700" : ""
-                }`}
-              >
-                <div
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center ${getCategoryColor(
-                    category.name
-                  )}`}
+            <div className="p-2 space-y-1">
+              {filteredCategories.map((category) => (
+                <button
+                  key={category.id}
+                  type="button"
+                  onClick={() => handleCategorySelect(category.id)}
+                  className={`w-full px-4 py-3 flex items-center gap-3 rounded-xl transition-all text-left ${selectedId === category.id
+                      ? "bg-indigo-500/10 border border-indigo-500/20"
+                      : "bg-transparent hover:bg-zinc-800/80 border border-transparent"
+                    }`}
                 >
-                  <Tag size={16} />
-                </div>
-                <span className="text-white font-medium">{category.name}</span>
-              </button>
-            ))
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-inner ${getCategoryColor(
+                      category.name
+                    )}`}
+                  >
+                    <Tag size={16} className={selectedId === category.id ? "text-indigo-400" : "text-white/80"} />
+                  </div>
+                  <span className={`font-semibold tracking-wide ${selectedId === category.id ? "text-indigo-100" : "text-zinc-200"}`}>{category.name}</span>
+                </button>
+              ))}
+            </div>
           )}
         </div>
       )}
 
       {/* Selected Category Display */}
       {selectedCategory && !searchQuery && (
-        <div className="mt-2 flex items-center gap-2">
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none">
           <div
-            className={`px-3 py-1 rounded-full text-xs font-semibold ${getCategoryColor(
+            className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border border-white/5 shadow-sm ${getCategoryColor(
               selectedCategory.name
             )}`}
           >

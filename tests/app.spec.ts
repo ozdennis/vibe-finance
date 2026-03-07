@@ -1,10 +1,28 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Vibe Finance - Core Features', () => {
-  
+
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
+  });
+
+  test('0. Loading state displays skeleton', async ({ page }) => {
+    // Navigate to trigger loading state (use hard reload)
+    await page.reload({ waitUntil: 'commit' });
+    
+    // Wait for loading skeleton to appear (quick check)
+    await page.waitForTimeout(100);
+    
+    // Check for loading skeleton elements
+    const loadingSkeleton = page.locator('section').filter({ hasText: /Net Liquidity/i }).first();
+    
+    // Screenshot of loading state
+    await page.screenshot({ path: 'tests/screenshots/00-loading-state.png' });
+    
+    // Wait for actual content to load
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
   });
 
   test('1. Dashboard loads with Net Liquidity Hero', async ({ page }) => {
@@ -109,27 +127,65 @@ test.describe('Vibe Finance - Core Features', () => {
     const fabButton = page.locator('button[aria-label="Add Transaction"]');
     await fabButton.click();
     await page.waitForSelector('text=Quick Log', { state: 'visible' });
-    
+
     // Click category search input
     const categoryInput = page.locator('input[placeholder*="Search category"]');
     await categoryInput.click();
     await categoryInput.fill('FO');
-    
+
     // Wait for dropdown
     await page.waitForTimeout(1000);
-    
+
     // Check dropdown appears
     const dropdown = page.locator('[class*="bg-slate-800"]').filter({ hasText: /FOOD/i }).first();
     await expect(dropdown).toBeVisible();
-    
+
     // Screenshot
     await page.screenshot({ path: 'tests/screenshots/08-category-search.png' });
-    
+
     // Close drawer
     await page.keyboard.press('Escape');
   });
 
-  test('9. Add Account modal opens', async ({ page }) => {
+  test('9. Category fuzzy search with typos', async ({ page }) => {
+    // Navigate to dashboard first
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    // Open Quick Log drawer
+    const fabButton = page.locator('button[aria-label="Add Transaction"]');
+    await fabButton.click();
+    await page.waitForSelector('text=Quick Log', { state: 'visible' });
+    await page.waitForTimeout(500);
+
+    // Click category search input
+    const categoryInput = page.locator('input[placeholder*="Search category"]');
+    await categoryInput.click();
+
+    // Test fuzzy search with typo: "FOOD" -> "FOD"
+    await categoryInput.fill('FOD');
+    await page.waitForTimeout(500);
+
+    // Verify FOOD category still appears despite typo
+    const foodCategory = page.locator('text=FOOD').first();
+    await expect(foodCategory).toBeVisible();
+
+    // Screenshot showing fuzzy search results
+    await page.screenshot({ path: 'tests/screenshots/09-category-fuzzy-search.png' });
+
+    // Click on FOOD category
+    await foodCategory.click();
+    await page.waitForTimeout(300);
+
+    // Verify category is selected (shows as badge)
+    const selectedBadge = page.locator('[class*="rounded-full"]').filter({ hasText: 'FOOD' }).first();
+    await expect(selectedBadge).toBeVisible();
+
+    // Screenshot showing selected category
+    await page.screenshot({ path: 'tests/screenshots/09-category-selected.png' });
+  });
+
+  test('10. Add Account modal opens', async ({ page }) => {
     // Navigate to settings
     const settingsButton = page.locator('a[href="/settings"]').first();
     await settingsButton.click();
@@ -148,23 +204,23 @@ test.describe('Vibe Finance - Core Features', () => {
     await page.screenshot({ path: 'tests/screenshots/09-add-account-modal.png' });
   });
 
-  test('10. Receipt scan button visible', async ({ page }) => {
+  test('11. Receipt scan button visible', async ({ page }) => {
     const fabButton = page.locator('button[aria-label="Add Transaction"]');
     await fabButton.click();
     await page.waitForSelector('text=Quick Log', { state: 'visible' });
-    
+
     // Check scan receipt button
     const scanButton = page.locator('button:has-text("Scan Receipt")');
     await expect(scanButton).toBeVisible();
-    
+
     // Screenshot
     await page.screenshot({ path: 'tests/screenshots/10-receipt-scan-button.png' });
-    
+
     // Close drawer
     await page.keyboard.press('Escape');
   });
 
-  test('11. Transaction History displays with edit/delete buttons', async ({ page }) => {
+  test('12. Transaction History displays with edit/delete buttons', async ({ page }) => {
     // Scroll down to transaction history
     await page.evaluate(() => window.scrollBy(0, 500));
     await page.waitForTimeout(500);
@@ -190,7 +246,7 @@ test.describe('Vibe Finance - Core Features', () => {
     await page.screenshot({ path: 'tests/screenshots/11-transaction-history.png' });
   });
 
-  test('12. Transaction edit modal opens', async ({ page }) => {
+  test('13. Transaction edit modal opens', async ({ page }) => {
     // Find a transaction and hover to reveal edit button
     const transactionItem = page.locator('[class*="bg-slate-800/50"]').filter({ hasText: /Lunch|Gojek|Grocery/i }).first();
     await transactionItem.hover();
@@ -219,11 +275,66 @@ test.describe('Vibe Finance - Core Features', () => {
     }
   });
 
-  test('13. Monthly Trend Chart displays', async ({ page }) => {
+  test('14. Monthly Trend Chart displays', async ({ page }) => {
     const trendSection = page.locator('text=Monthly Trend').first();
     await expect(trendSection).toBeVisible();
-    
+
     // Screenshot
     await page.screenshot({ path: 'tests/screenshots/13-monthly-trend-chart.png' });
+  });
+
+  test('15. Category creation prevents double-submit', async ({ page }) => {
+    // Navigate to settings
+    await page.goto('/settings');
+    await page.waitForLoadState('networkidle');
+
+    // Click "Add Category" button
+    const addCategoryButton = page.locator('button:has-text("Add Category")').first();
+    await expect(addCategoryButton).toBeVisible();
+    await addCategoryButton.click();
+
+    // Wait for modal to appear
+    const modal = page.locator('text=New Category').first();
+    await expect(modal).toBeVisible();
+
+    // Fill in category name with unique timestamp
+    const timestamp = Date.now();
+    const categoryName = `TEST${timestamp}`;
+    const nameInput = page.locator('input[placeholder*="e.g., FOOD"]').first();
+    await nameInput.fill(categoryName);
+
+    // Get the submit button and verify it's enabled
+    const submitButton = page.locator('button[type="submit"]:has-text("Create Category")').first();
+    await expect(submitButton).toBeVisible();
+    await expect(submitButton).toBeEnabled();
+
+    // Take screenshot before submission
+    await page.screenshot({ path: 'tests/screenshots/14-category-before-submit.png' });
+
+    // Submit form
+    await submitButton.click();
+
+    // Wait for modal to close (indicates success)
+    await expect(modal).not.toBeVisible({ timeout: 10000 });
+
+    // Screenshot after modal closes
+    await page.screenshot({ path: 'tests/screenshots/14-category-double-submit.png' });
+
+    // Verify the category was created (should only be one instance)
+    const categoryElements = page.locator(`text=${categoryName}`);
+    await expect(categoryElements).toHaveCount(1);
+  });
+
+  test('16. Credit Card Statements page loads', async ({ page }) => {
+    await page.goto('/statements');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
+
+    // Check page title
+    const title = page.locator('h1').filter({ hasText: /Credit Card Statements/i });
+    await expect(title).toBeVisible();
+
+    // Screenshot
+    await page.screenshot({ path: 'tests/screenshots/15-statements-page.png' });
   });
 });

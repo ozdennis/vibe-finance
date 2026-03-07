@@ -20,7 +20,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#10b981",
+  themeColor: "#09090b", // Updated to match zinc-950
 };
 
 export default function RootLayout({
@@ -29,8 +29,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={inter.className}>{children}</body>
+    <html lang="en" className="dark">
+      <body className={`${inter.className} min-h-screen relative overflow-x-hidden`}>
+        {/* Subtle Radial Gradient Mesh Background */}
+        <div className="pointer-events-none fixed inset-0 z-[-1] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900/40 via-zinc-950/80 to-zinc-950"></div>
+        
+        {/* Content Container */}
+        <div className="relative z-0">
+          {children}
+        </div>
+      </body>
     </html>
   );
 }

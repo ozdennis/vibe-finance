@@ -1,39 +1,112 @@
 @import "tailwindcss";
 
-/* Custom theme variables for Industrial Utilitarian Dark Mode */
+/* 
+  Huly.io Inspired - Sci-Fi Productivity Theme 
+  Deep dark backgrounds, vibrant semantic accents, and tactile interactive surfaces.
+*/
 @theme {
-  --color-slate-950: #0f172a;
-  --color-slate-900: #1e293b;
-  --color-slate-800: #334155;
-  --color-slate-700: #475569;
-  --color-slate-400: #94a3b8;
-  --color-slate-500: #64748b;
-  
-  --color-emerald-400: #10b981;
-  --color-emerald-500: #059669;
-  --color-emerald-600: #047857;
-  
-  --color-rose-400: #ef4444;
-  --color-rose-500: #dc2626;
-  
-  --color-amber-400: #fbbf24;
-  --color-amber-500: #f59e0b;
-  
-  --color-blue-400: #3b82f6;
-  --color-purple-400: #a855f7;
-  --color-pink-400: #ec4899;
-  --color-orange-400: #fb923c;
-  --color-yellow-400: #eab308;
-  --color-red-400: #f87171;
-  --color-green-400: #4ade80;
+  /* The Void - Base Backgrounds */
+  --color-zinc-950: #09090b;
+  /* True background */
+  --color-zinc-900: #121214;
+  /* Deep surface */
+  --color-zinc-800: #18181b;
+  /* Elevated surface */
+  --color-zinc-700: #27272a;
+  /* Borders / subtle highlights */
+
+  /* Text and Soft Elements */
+  --color-zinc-400: #a1a1aa;
+  /* Muted text */
+  --color-zinc-300: #d4d4d8;
+  /* Primary text */
+  --color-zinc-100: #f4f4f5;
+  /* Headings / Emphasized */
+
+  /* Premium Accents (Glowing, tactile) */
+  --color-emerald-400: #34d399;
+  /* Positive / Liquidity */
+  --color-emerald-500: #10b981;
+  --color-emerald-900: #064e3b;
+  /* For subtle positive backgrounds */
+
+  --color-rose-400: #fb7185;
+  /* Negative / Debt */
+  --color-rose-500: #f43f5e;
+  --color-rose-900: #881337;
+  /* For subtle negative backgrounds */
+
+  /* Brand / Electric Accents */
+  --color-indigo-400: #818cf8;
+  --color-indigo-500: #6366f1;
+  --color-violet-500: #8b5cf6;
 }
 
-/* Hide scrollbar for horizontal scroll areas */
-.scrollbar-hide {
+/* Base Body Styles */
+@layer base {
+  body {
+    @apply bg-zinc-950 text-zinc-300 antialiased selection:bg-indigo-500/30 selection:text-indigo-200;
+  }
+}
+
+/* Custom visible scrollbar for horizontal areas */
+@utility custom-scrollbar {
+  &::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* Hide scrollbar entirely only when strictly necessary */
+@utility scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
+/* Glassmorphism Panels (Premium surface overlay) */
+@utility glass-panel {
+  @apply bg-zinc-900/60 backdrop-blur-xl border border-white/5;
+  box-shadow: 0 4px 24px -8px rgba(0, 0, 0, 0.5);
+}
+
+/* Interactive Card Surfaces (Tactile feedback) */
+@utility interactive-card {
+  @apply transition-all duration-300 ease-out;
+  @apply bg-zinc-900/60 backdrop-blur-xl border border-white/5;
+  box-shadow: 0 4px 24px -8px rgba(0, 0, 0, 0.5);
+
+  &:hover {
+    @apply -translate-y-1 border-white/10;
+    box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.6);
+  }
+
+  &:active {
+    @apply scale-[0.98] translate-y-0 duration-100;
+  }
+}
+
+/* Subtle Glow Text (For large numbers or hero text) */
+@utility text-glow-emerald {
+  text-shadow: 0 0 24px rgba(52, 211, 153, 0.4);
+}
+
+@utility text-glow-rose {
+  text-shadow: 0 0 24px rgba(251, 113, 133, 0.4);
 }

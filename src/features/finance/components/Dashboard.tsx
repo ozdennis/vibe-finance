@@ -12,6 +12,7 @@ import { PWAProvider } from "./PWAProvider";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { Settings } from "lucide-react";
 import Link from "next/link";
+import { calculateIndonesianTax } from "../lib/utils";
 
 interface DashboardProps {
   userId: string;
@@ -58,10 +59,19 @@ export default async function Dashboard({ userId }: DashboardProps) {
     transactions = transactionsData;
     creditCards = creditCardData;
 
-    // Calculate projected tax (simplified: 12% effective rate projection)
-    const monthlyAverage = yearlyIncome / 6; // Based on 6 months of data
-    const projectedYearlyIncome = monthlyAverage * 12;
-    projectedTax = Math.round(projectedYearlyIncome * 0.12); // Simplified 12% effective rate
+    // Calculate projected tax using monthly trends
+    const monthlyIncomes = trendData.map(m => m.income);
+
+    // Use last month's income to project yearly
+    let projectedYearlyIncome = yearlyIncome * 2; // Default: double current 6-month income
+
+    if (monthlyIncomes.length >= 2) {
+      const lastMonthIncome = monthlyIncomes[monthlyIncomes.length - 1];
+      projectedYearlyIncome = lastMonthIncome * 12;
+    }
+
+    // Calculate Indonesian tax (PPh 21) with PTKP
+    projectedTax = calculateIndonesianTax(projectedYearlyIncome);
     paidTax = 0; // Would track actual tax payments in a real app
   } catch (error) {
     console.error("Failed to load dashboard data:", error);
@@ -83,15 +93,30 @@ export default async function Dashboard({ userId }: DashboardProps) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 pb-32">
+    <div className="min-h-screen bg-transparent text-zinc-300 p-4 md:p-8 pb-32 max-w-7xl mx-auto">
       {/* Header with Settings */}
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-between items-center mb-8 sm:mb-12">
+        <div className="relative">
+          {/* Subtle background glow for logo area */}
+          <div className="absolute -inset-4 bg-indigo-500/10 blur-3xl rounded-full opacity-50 pointer-events-none"></div>
+          <h1 className="text-3xl font-bold tracking-tighter text-white relative z-10">Vibe Finance</h1>
+          <p className="text-zinc-400 text-sm mt-1 font-medium tracking-wide relative z-10">Personal Wealth OS</p>
+        </div>
         <Link
           href="/settings"
-          className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-white"
+          className="group relative p-2 pr-3 sm:pr-4 rounded-2xl glass-panel hover:bg-zinc-800/80 transition-all duration-300 active:scale-[0.97] overflow-hidden flex items-center gap-3 border-white/10"
           aria-label="Settings"
         >
-          <Settings size={20} />
+          {/* Hover gradient sweep */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full duration-1000 transition-transform empty:hidden"></div>
+
+          <div className="relative z-10 p-2 sm:p-2.5 bg-zinc-800/80 rounded-xl border border-white/5 shadow-inner group-hover:border-indigo-500/30 transition-colors">
+            <Settings size={18} className="text-zinc-400 group-hover:text-indigo-400 transition-colors" />
+          </div>
+
+          <span className="relative z-10 text-xs sm:text-sm font-bold tracking-widest uppercase text-zinc-400 group-hover:text-zinc-100 transition-colors">
+            Settings
+          </span>
         </Link>
       </div>
 
@@ -143,8 +168,8 @@ export default async function Dashboard({ userId }: DashboardProps) {
 
         {/* Transaction History */}
         <ErrorBoundary name="TransactionHistory">
-          <TransactionHistory 
-            userId={userId} 
+          <TransactionHistory
+            userId={userId}
             limit={10}
             transactions={transactions}
             categories={categories}

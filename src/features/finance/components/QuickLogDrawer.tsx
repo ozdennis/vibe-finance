@@ -125,13 +125,13 @@ export function QuickLogDrawer({ accounts, categories }: QuickLogDrawerProps) {
         setIsProcessing(false);
         return;
       }
-      
+
       if (!data.accountId) {
         alert('❌ Please select an account');
         setIsProcessing(false);
         return;
       }
-      
+
       if (data.type === 'TRANSFER' && !data.toAccountId) {
         alert('❌ Please select destination account for transfer');
         setIsProcessing(false);
@@ -184,7 +184,7 @@ export function QuickLogDrawer({ accounts, categories }: QuickLogDrawerProps) {
   });
 
   // For transfer "To Account" dropdown - exclude currently selected "From" account
-  const transferTargetAccounts = transactionType === "TRANSFER" 
+  const transferTargetAccounts = transactionType === "TRANSFER"
     ? accounts.filter(acc => acc.id !== fromAccountId)
     : [];
 
@@ -206,40 +206,40 @@ export function QuickLogDrawer({ accounts, categories }: QuickLogDrawerProps) {
       {/* Floating Action Button */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 h-16 w-16 bg-emerald-500 rounded-full shadow-2xl flex items-center justify-center text-white hover:bg-emerald-600 active:scale-95 transition-all z-40"
+        className="fixed bottom-6 right-6 h-16 w-16 bg-indigo-500 rounded-full shadow-[0_8px_32px_rgba(99,102,241,0.4)] flex items-center justify-center text-white hover:bg-indigo-400 active:scale-90 transition-all z-40 hover:shadow-[0_8px_40px_rgba(99,102,241,0.6)] group"
         aria-label="Add Transaction"
       >
-        <Plus size={32} />
+        <Plus size={32} className="group-hover:rotate-90 transition-transform duration-300" />
       </button>
 
       {/* Drawer */}
       <Drawer.Root open={isOpen} onOpenChange={handleOpenChange}>
         <Drawer.Portal>
-          <Drawer.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40" />
-          <Drawer.Content className="bg-slate-900 flex flex-col rounded-t-[32px] h-[85vh] fixed bottom-0 left-0 right-0 z-50 outline-none border-t border-slate-800">
+          <Drawer.Overlay className="fixed inset-0 bg-zinc-950/80 backdrop-blur-sm z-40" />
+          <Drawer.Content className="glass-panel flex flex-col rounded-t-[40px] h-[85vh] fixed bottom-0 left-0 right-0 z-50 outline-none border-t border-white/10 shadow-[0_-10px_50px_rgba(0,0,0,0.5)]">
             {/* Drag handle */}
-            <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-slate-700 mb-6 mt-4" />
+            <div className="mx-auto w-16 h-1.5 flex-shrink-0 rounded-full bg-zinc-700 mb-8 mt-5" />
 
             {/* Required DialogTitle for accessibility */}
             <Drawer.Title className="sr-only">Quick Log Transaction</Drawer.Title>
 
-            <div className="flex items-center justify-between px-6 mb-6">
-              <h3 className="text-xl font-bold text-white">Quick Log</h3>
+            <div className="flex items-center justify-between px-8 mb-6">
+              <h3 className="text-2xl font-bold text-white tracking-tight">Quick Log</h3>
               <button
                 onClick={() => setIsOpen(false)}
-                className="p-2 hover:bg-slate-800 rounded-full transition-colors"
+                className="p-2 hover:bg-zinc-800 rounded-full transition-all active:scale-90"
               >
-                <X size={20} className="text-slate-400" />
+                <X size={24} className="text-zinc-400 hover:text-white" />
               </button>
             </div>
 
             <form
               onSubmit={handleSubmit(onSubmit)}
-              className="flex-1 overflow-y-auto px-6 pb-6 space-y-6"
+              className="flex-1 overflow-y-auto px-8 pb-8 space-y-8 scrollbar-hide"
             >
               {/* Amount Input - Large Numpad Trigger */}
               <div>
-                <label className="text-slate-400 text-xs mb-2 block">
+                <label className="text-zinc-500 text-xs font-semibold uppercase tracking-widest mb-3 block">
                   Amount (IDR)
                 </label>
                 <input
@@ -251,10 +251,10 @@ export function QuickLogDrawer({ accounts, categories }: QuickLogDrawerProps) {
                   type="text"
                   inputMode="decimal"
                   placeholder="0"
-                  className="w-full bg-transparent text-5xl font-bold text-white border-b border-slate-700 pb-4 outline-none focus:border-emerald-500 transition-colors placeholder:text-slate-700"
+                  className="w-full bg-transparent text-6xl md:text-7xl font-bold tracking-tighter text-white border-b border-white/10 pb-4 outline-none focus:border-indigo-500 transition-colors placeholder:text-zinc-800"
                 />
                 {errors.amount && (
-                  <p className="text-rose-400 text-xs mt-2">
+                  <p className="text-rose-400 text-xs mt-2 font-medium">
                     {errors.amount.message}
                   </p>
                 )}
@@ -274,35 +274,34 @@ export function QuickLogDrawer({ accounts, categories }: QuickLogDrawerProps) {
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingImage}
-                  className="flex-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-slate-300 transition-colors"
+                  className="flex-1 bg-zinc-800/50 hover:bg-zinc-800 border border-white/5 disabled:opacity-50 py-4 px-4 rounded-2xl flex items-center justify-center gap-3 text-zinc-300 transition-all active:scale-[0.98]"
                 >
                   {uploadingImage ? (
-                    <span className="text-sm">Scanning...</span>
+                    <span className="text-sm font-medium tracking-wide">Scanning AI...</span>
                   ) : (
                     <>
-                      <Camera size={18} />
-                      <span className="text-sm">Scan Receipt</span>
+                      <Camera size={20} className="text-indigo-400" />
+                      <span className="text-sm font-medium tracking-wide">Scan Receipt</span>
                     </>
                   )}
                 </button>
               </div>
 
               {/* Transaction Type */}
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-3 p-1 bg-zinc-900/50 border border-white/5 rounded-2xl">
                 {(["EXPENSE", "INCOME", "TRANSFER"] as const).map((type) => (
                   <button
                     key={type}
                     type="button"
                     onClick={() => setValue("type", type)}
-                    className={`py-3 rounded-xl text-sm font-semibold transition-all ${
-                      transactionType === type
-                        ? type === "EXPENSE"
-                          ? "bg-rose-500 text-white"
-                          : type === "INCOME"
-                          ? "bg-emerald-500 text-white"
-                          : "bg-blue-500 text-white"
-                        : "bg-slate-800 text-slate-400 hover:bg-slate-700"
-                    }`}
+                    className={`py-3 rounded-xl text-xs md:text-sm font-bold tracking-wider transition-all duration-300 ${transactionType === type
+                      ? type === "EXPENSE"
+                        ? "bg-rose-500 text-white shadow-[0_0_15px_rgba(244,63,94,0.4)]"
+                        : type === "INCOME"
+                          ? "bg-emerald-500 text-zinc-950 shadow-[0_0_15px_rgba(16,185,129,0.4)]"
+                          : "bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]"
+                      : "bg-transparent text-zinc-500 hover:text-zinc-300"
+                      }`}
                   >
                     {type}
                   </button>
@@ -311,28 +310,28 @@ export function QuickLogDrawer({ accounts, categories }: QuickLogDrawerProps) {
 
               {/* Account Select */}
               <div>
-                <label className="text-slate-400 text-xs mb-2 block">
+                <label className="text-zinc-500 text-xs font-semibold uppercase tracking-widest mb-3 block">
                   {transactionType === "TRANSFER" ? "From Account" : "Account"}
                 </label>
                 <select
                   {...register("accountId", {
                     required: "Please select an account",
                   })}
-                  className="w-full bg-slate-800 p-4 rounded-xl text-white outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  className="w-full bg-zinc-900/50 border border-white/10 p-4 rounded-2xl text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all appearance-none"
                 >
-                  <option value="">Select account</option>
+                  <option value="" className="bg-zinc-900 text-zinc-500">Select account</option>
                   {filteredAccounts.length === 0 ? (
-                    <option disabled value="">No accounts available - add an account first</option>
+                    <option disabled value="" className="bg-zinc-900">No accounts available - add an account first</option>
                   ) : (
                     filteredAccounts.map((acc) => (
-                      <option key={acc.id} value={acc.id}>
-                        {acc.name} ({acc.type}) - Rp {Number(acc.balance).toLocaleString('id-ID')}
+                      <option key={acc.id} value={acc.id} className="bg-zinc-900 hover:bg-indigo-500">
+                        {acc.name} ({acc.type.replace('_', ' ')}) - Rp {Number(acc.balance).toLocaleString('id-ID')}
                       </option>
                     ))
                   )}
                 </select>
                 {errors.accountId && (
-                  <p className="text-rose-400 text-xs mt-2">
+                  <p className="text-rose-400 text-xs mt-2 font-medium">
                     {errors.accountId.message}
                   </p>
                 )}
@@ -341,28 +340,28 @@ export function QuickLogDrawer({ accounts, categories }: QuickLogDrawerProps) {
               {/* To Account Select (Transfer only) */}
               {transactionType === "TRANSFER" && (
                 <div>
-                  <label className="text-slate-400 text-xs mb-2 block">
+                  <label className="text-zinc-500 text-xs font-semibold uppercase tracking-widest mb-3 block">
                     To Account
                   </label>
                   <select
                     {...register("toAccountId", {
                       required: "Please select a destination account",
                     })}
-                    className="w-full bg-slate-800 p-4 rounded-xl text-white outline-none focus:ring-2 focus:ring-emerald-500/50"
+                    className="w-full bg-zinc-900/50 border border-white/10 p-4 rounded-2xl text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all appearance-none"
                   >
-                    <option value="">Select destination account</option>
+                    <option value="" className="bg-zinc-900 text-zinc-500">Select destination account</option>
                     {transferTargetAccounts.length === 0 ? (
-                      <option disabled value="">No destination accounts available</option>
+                      <option disabled value="" className="bg-zinc-900">No destination accounts available</option>
                     ) : (
                       transferTargetAccounts.map((acc) => (
-                        <option key={acc.id} value={acc.id}>
-                          {acc.name} ({acc.type}) - Rp {Number(acc.balance).toLocaleString('id-ID')}
+                        <option key={acc.id} value={acc.id} className="bg-zinc-900 hover:bg-indigo-500">
+                          {acc.name} ({acc.type.replace('_', ' ')}) - Rp {Number(acc.balance).toLocaleString('id-ID')}
                         </option>
                       ))
                     )}
                   </select>
                   {errors.toAccountId && (
-                    <p className="text-rose-400 text-xs mt-2">
+                    <p className="text-rose-400 text-xs mt-2 font-medium">
                       {errors.toAccountId.message}
                     </p>
                   )}
@@ -371,16 +370,16 @@ export function QuickLogDrawer({ accounts, categories }: QuickLogDrawerProps) {
 
               {/* Transaction Date */}
               <div>
-                <label className="text-slate-400 text-xs mb-2 block">
+                <label className="text-zinc-500 text-xs font-semibold uppercase tracking-widest mb-3 block">
                   Date
                 </label>
                 <input
                   {...register("date", { required: "Date is required" })}
                   type="date"
-                  className="w-full bg-slate-800 p-4 rounded-xl text-white outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  className="w-full bg-zinc-900/50 border border-white/10 p-4 rounded-2xl text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                 />
                 {errors.date && (
-                  <p className="text-rose-400 text-xs mt-2">
+                  <p className="text-rose-400 text-xs mt-2 font-medium">
                     {errors.date.message}
                   </p>
                 )}
@@ -395,14 +394,14 @@ export function QuickLogDrawer({ accounts, categories }: QuickLogDrawerProps) {
 
               {/* Description */}
               <div>
-                <label className="text-slate-400 text-xs mb-2 block">
+                <label className="text-zinc-500 text-xs font-semibold uppercase tracking-widest mb-3 block">
                   Description (optional)
                 </label>
                 <input
                   {...register("description")}
                   type="text"
                   placeholder="What was this for?"
-                  className="w-full bg-slate-800 p-4 rounded-xl text-white outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  className="w-full bg-zinc-900/50 border border-white/10 p-4 rounded-2xl text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-zinc-600"
                 />
               </div>
 
@@ -410,9 +409,9 @@ export function QuickLogDrawer({ accounts, categories }: QuickLogDrawerProps) {
               <button
                 type="submit"
                 disabled={isProcessing}
-                className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed py-4 rounded-2xl font-bold text-slate-900 active:scale-95 transition-all mt-4"
+                className="w-full bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed py-5 rounded-2xl font-bold tracking-wide text-white active:scale-95 transition-all mt-8 shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:shadow-[0_0_30px_rgba(99,102,241,0.5)]"
               >
-                {isProcessing ? "Processing..." : "Record Transaction"}
+                {isProcessing ? "Processing Vault Entry..." : "Submit Transaction"}
               </button>
             </form>
           </Drawer.Content>

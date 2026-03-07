@@ -62,15 +62,22 @@ export async function getCategories(userId: string) {
  * Gets recent transactions for the user
  */
 export async function getRecentTransactions(userId: string, limit = 20) {
-  return await db.transaction.findMany({
+  const transactions = await db.transaction.findMany({
     where: { createdById: userId },
     include: {
+      category: { select: { id: true, name: true, color: true } },
       fromAccount: { select: { id: true, name: true, type: true } },
       toAccount: { select: { id: true, name: true, type: true } },
     },
     orderBy: { createdAt: "desc" },
     take: limit,
   });
+
+  // Serialize Decimal to number for client components
+  return transactions.map(tx => ({
+    ...tx,
+    amount: Number(tx.amount),
+  }));
 }
 
 /**
@@ -416,4 +423,31 @@ export async function getAccountBalanceHistory(
   }
 
   return history.reverse();
+}
+
+// ============================================
+// AUDIT LOG QUERIES
+// ============================================
+
+/**
+ * Get audit logs for a user
+ */
+export async function getAuditLogs(userId: string) {
+  return await db.auditLog.findMany({
+    where: { createdById: userId },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
+}
+
+// ============================================
+// CREDIT CARD STATEMENT QUERIES (ALIAS)
+// ============================================
+
+/**
+ * Get all credit card statements for a user
+ * Alias for getAllCreditCardStatus for compatibility
+ */
+export async function getCreditCardStatements(userId: string) {
+  return await getAllCreditCardStatus(userId);
 }

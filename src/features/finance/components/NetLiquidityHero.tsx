@@ -15,36 +15,44 @@ export function NetLiquidityHero({
   const isPositive = netLiquidity >= 0;
 
   return (
-    <section className="text-center py-10 px-6 bg-slate-900/50 rounded-3xl border border-slate-800 mb-8">
-      <h2 className="text-slate-400 text-sm font-medium uppercase tracking-widest">
-        Net Liquidity
-      </h2>
+    <section className="relative group interactive-card rounded-3xl p-8 md:p-12 mb-10 overflow-hidden flex flex-col items-center justify-center min-h-[300px]">
+      {/* Background glow effects */}
+      <div className={`absolute -inset-x-20 top-0 h-[1px] bg-gradient-to-r from-transparent ${isPositive ? 'via-emerald-500/30' : 'via-rose-500/30'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700`}></div>
+      <div className={`absolute inset-0 bg-gradient-to-b ${isPositive ? 'from-emerald-500/5' : 'from-rose-500/5'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`}></div>
 
-      <div
-        className={`text-5xl font-bold mt-2 ${
-          isPositive ? "text-emerald-400" : "text-rose-400"
-        }`}
-      >
-        {formatIDR(netLiquidity)}
-      </div>
+      {/* Content */}
+      <div className="relative z-10 flex flex-col items-center">
+        <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-[0.2em] mb-4">
+          Net Liquidity
+        </h2>
 
-      <p className="text-xs text-slate-500 mt-2 italic">
-        {isPositive ? "Real Money" : "You're in debt"}
-      </p>
-
-      {/* Mini breakdown */}
-      <div className="flex justify-center gap-8 mt-6 text-xs">
-        <div className="flex flex-col">
-          <span className="text-slate-500">Cash & E-Wallets</span>
-          <span className="text-emerald-400 font-semibold">
-            {formatIDR(cashTotal)}
-          </span>
+        <div className="relative">
+          <div className={`text-5xl md:text-7xl font-bold tracking-tighter ${isPositive ? "text-emerald-400 text-glow-emerald" : "text-rose-400 text-glow-rose"} transition-all duration-300`}>
+            {formatIDR(netLiquidity)}
+          </div>
         </div>
-        <div className="flex flex-col">
-          <span className="text-slate-500">Credit Card Debt</span>
-          <span className="text-rose-400 font-semibold">
-            {formatIDR(debtTotal)}
-          </span>
+
+        <p className="text-sm text-zinc-500 mt-4 font-light tracking-wide">
+          {isPositive ? "Verified Real Money" : "Currently in Debt"}
+        </p>
+
+        {/* Breakdown Panel */}
+        <div className="flex flex-row justify-center items-center gap-8 md:gap-16 mt-10 pt-8 border-t border-white/5 w-full max-w-lg">
+          <div className="flex flex-col items-center">
+            <span className="text-zinc-500 text-xs uppercase tracking-wider mb-2">Liquid Assets</span>
+            <span className="text-emerald-400 font-medium text-lg tracking-tight">
+              {formatIDR(cashTotal)}
+            </span>
+          </div>
+
+          <div className="h-10 w-[1px] bg-white/5"></div>
+
+          <div className="flex flex-col items-center">
+            <span className="text-zinc-500 text-xs uppercase tracking-wider mb-2">Credit Debt</span>
+            <span className="text-rose-400 font-medium text-lg tracking-tight">
+              {formatIDR(debtTotal)}
+            </span>
+          </div>
         </div>
       </div>
     </section>

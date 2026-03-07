@@ -51,10 +51,16 @@ export async function createTransaction(data: {
     await db.$transaction(async (tx) => {
       if (validated.type === "INCOME") {
         // INCOME: Add money to account
+        // For credit cards: payment DECREASES debt (balance goes down)
+        // For cash/e-wallet: income INCREASES balance (money goes up)
+        const isCreditCard = account.type === "CREDIT_CARD";
+        
         await tx.account.update({
           where: { id: validated.accountId },
           data: { 
-            balance: { increment: validated.amount },
+            balance: isCreditCard 
+              ? { decrement: validated.amount }  // CC: Payment reduces debt
+              : { increment: validated.amount }, // Cash: Income adds money
             updatedById: validated.userId,
           },
         });

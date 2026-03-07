@@ -33,15 +33,15 @@ function getAccountIcon(type: string) {
 function getAccountColor(type: string) {
   switch (type) {
     case "CASH":
-      return "border-emerald-500/30";
+      return "border-emerald-500/20 group-hover:border-emerald-500/40";
     case "E_WALLET":
-      return "border-blue-500/30";
+      return "border-indigo-500/20 group-hover:border-indigo-500/40";
     case "CREDIT_CARD":
-      return "border-rose-500/30";
+      return "border-rose-500/20 group-hover:border-rose-500/40";
     case "INVESTMENT":
-      return "border-purple-500/30";
+      return "border-violet-500/20 group-hover:border-violet-500/40";
     default:
-      return "border-slate-700";
+      return "border-white/5 group-hover:border-white/20";
   }
 }
 
@@ -61,74 +61,130 @@ export function AccountGrid({ accounts }: AccountGridProps) {
     );
   }
 
+  // Group accounts by type
+  const groupedAccounts = accounts.reduce((acc, account) => {
+    if (!acc[account.type]) {
+      acc[account.type] = [];
+    }
+    acc[account.type].push(account);
+    return acc;
+  }, {} as Record<string, Account[]>);
+
+  // Preferred order of categories for presentation
+  const typeOrder = ["CASH", "E_WALLET", "CREDIT_CARD", "INVESTMENT"];
+  const sortedTypes = Object.keys(groupedAccounts).sort((a, b) => {
+    const indexA = typeOrder.indexOf(a);
+    const indexB = typeOrder.indexOf(b);
+    return (indexA === -1 ? 99 : indexA) - (indexB === -1 ? 99 : indexB);
+  });
+
+  const getCategoryLabel = (type: string) => {
+    switch (type) {
+      case "CASH": return "Cash & Bank Accounts";
+      case "E_WALLET": return "E-Wallets & Digital";
+      case "CREDIT_CARD": return "Credit Cards";
+      case "INVESTMENT": return "Investments & Wealth";
+      default: return type.replace("_", " ");
+    }
+  };
+
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory -mx-4 px-4 scrollbar-hide">
-      {accounts.map((account) => (
+    <div className="space-y-8 mt-2">
+      {sortedTypes.map((type, index) => (
         <div
-          key={account.id}
-          className={`flex-shrink-0 w-72 bg-slate-900 p-5 rounded-2xl border ${getAccountColor(
-            account.type
-          )} snap-start`}
+          key={type}
+          className="animate-in fade-in slide-in-from-bottom-4"
+          style={{ animationDuration: `${(index + 1) * 300}ms` }}
         >
-          <div className="flex items-center gap-3 mb-4">
-            {getAccountIcon(account.type)}
-            <div>
-              <p className="text-white font-semibold">{account.name}</p>
-              <p className="text-xs text-slate-500 uppercase tracking-wider">
-                {account.type.replace("_", " ")}
-              </p>
-            </div>
+          <div className="flex items-center gap-3 mb-5 px-1">
+            <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-[0.2em]">{getCategoryLabel(type)}</h3>
+            <div className="h-[1px] flex-1 bg-gradient-to-r from-white/10 to-transparent"></div>
           </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {groupedAccounts[type].map((account) => (
+              <div
+                key={account.id}
+                className={`group p-6 rounded-3xl border interactive-card ${getAccountColor(
+                  account.type
+                )} relative overflow-hidden flex flex-col`}
+              >
+                {/* Subtle background glow based on account type */}
+                <div className="absolute top-0 right-0 -mr-8 -mt-8 w-24 h-24 bg-white/5 rounded-full blur-2xl opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
 
-          <div className="mb-2">
-            <p className="text-2xl font-bold text-white">
-              {formatIDR(toNumber(account.balance))}
-            </p>
+                <div className="flex items-center gap-3 mb-6 relative z-10">
+                  <div className="p-2.5 bg-zinc-800/80 rounded-xl border border-white/5 shadow-inner">
+                    {getAccountIcon(account.type)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-zinc-100 font-semibold text-lg tracking-tight leading-tight truncate">{account.name}</p>
+                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold mt-0.5">
+                      {account.type.replace("_", " ")}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mb-1 relative z-10 mt-auto">
+                  <p className="text-3xl font-bold tracking-tighter text-white truncate">
+                    {formatIDR(toNumber(account.balance))}
+                  </p>
+                </div>
+
+                {account.type === "CREDIT_CARD" && account.creditLimit && (
+                  <div className="mt-5 border-t border-white/5 pt-4 relative z-10">
+                    <div className="flex justify-between text-[11px] mb-2 font-medium tracking-wide">
+                      <span className="text-zinc-500">Available Limit</span>
+                      <span className="text-emerald-400">
+                        {formatIDR(Math.max(0, toNumber(account.creditLimit) - toNumber(account.balance)))}
+                      </span>
+                    </div>
+                    <div className="w-full bg-zinc-950/50 h-2 rounded-full overflow-hidden shadow-inner border border-white/5">
+                      <div
+                        className="bg-gradient-to-r from-rose-600 to-rose-400 h-full rounded-full transition-all duration-700 ease-out"
+                        style={{
+                          width: `${Math.min(100, Math.max(0, (toNumber(account.balance) / toNumber(account.creditLimit)) * 100))}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
-
-          {account.type === "CREDIT_CARD" && account.creditLimit && (
-            <div className="mt-3 pt-3 border-t border-slate-800">
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-500">Available</span>
-                <span className="text-emerald-400 font-medium">
-                  {formatIDR(toNumber(account.creditLimit) - toNumber(account.balance))}
-                </span>
-              </div>
-              <div className="mt-2 w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                <div
-                  className="bg-rose-500 h-full rounded-full transition-all"
-                  style={{
-                    width: `${
-                      (toNumber(account.balance) / toNumber(account.creditLimit)) * 100
-                    }%`,
-                  }}
-                />
-              </div>
-            </div>
-          )}
         </div>
       ))}
     </div>
   );
 }
 
-// Skeleton loader for loading states
 export function AccountGridSkeleton() {
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide">
-      {[1, 2, 3].map((i) => (
-        <div
-          key={i}
-          className="flex-shrink-0 w-72 bg-slate-900 p-5 rounded-2xl border border-slate-800 snap-start"
-        >
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-5 h-5 bg-slate-800 rounded animate-pulse" />
-            <div className="space-y-2">
-              <div className="w-24 h-4 bg-slate-800 rounded animate-pulse" />
-              <div className="w-16 h-3 bg-slate-800 rounded animate-pulse" />
-            </div>
+    <div className="space-y-8 mt-2">
+      {[1, 2].map((section) => (
+        <div key={section}>
+          <div className="flex items-center gap-3 mb-5 px-1">
+            <div className="w-32 h-3 bg-zinc-800/50 rounded-md animate-pulse"></div>
+            <div className="h-[1px] flex-1 bg-gradient-to-r from-white/5 to-transparent"></div>
           </div>
-          <div className="w-32 h-8 bg-slate-800 rounded animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="bg-zinc-900/40 p-6 rounded-3xl border border-white/5 relative overflow-hidden h-[160px]"
+              >
+                {/* Shimmer effect */}
+                <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/5 to-transparent"></div>
+
+                <div className="flex items-center gap-3 mb-6 relative z-10">
+                  <div className="w-10 h-10 bg-zinc-800/50 rounded-xl animate-pulse" />
+                  <div className="space-y-2">
+                    <div className="w-24 h-4 bg-zinc-800/50 rounded-md animate-pulse" />
+                    <div className="w-16 h-2 bg-zinc-800/50 rounded-md animate-pulse" />
+                  </div>
+                </div>
+                <div className="w-32 h-8 bg-zinc-800/50 rounded-lg animate-pulse mt-auto relative z-10" />
+              </div>
+            ))}
+          </div>
         </div>
       ))}
     </div>
