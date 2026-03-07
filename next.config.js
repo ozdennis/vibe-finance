@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  compress: true, // Enable gzip/brotli compression
+  compress: true,
+  output: 'standalone',
   experimental: {
     serverActions: {
       bodySizeLimit: '10mb',
