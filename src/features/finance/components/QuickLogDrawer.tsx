@@ -213,7 +213,11 @@ export function QuickLogDrawer({ accounts, categories }: QuickLogDrawerProps) {
       </button>
 
       {/* Drawer */}
-      <Drawer.Root open={isOpen} onOpenChange={handleOpenChange}>
+      <Drawer.Root
+        open={isOpen}
+        onOpenChange={handleOpenChange}
+        preventScrollRestoration={false}
+      >
         <Drawer.Portal>
           <Drawer.Overlay className="fixed inset-0 bg-zinc-950/80 backdrop-blur-sm z-40" />
           <Drawer.Content className="glass-panel flex flex-col rounded-t-[40px] h-[90dvh] fixed bottom-0 left-0 right-0 z-50 outline-none border-t border-white/10 shadow-[0_-10px_50px_rgba(0,0,0,0.5)]">
@@ -235,8 +239,7 @@ export function QuickLogDrawer({ accounts, categories }: QuickLogDrawerProps) {
 
             <form
               onSubmit={handleSubmit(onSubmit)}
-              data-vaul-no-drag
-              className="flex-1 overflow-y-auto px-8 pb-8 space-y-8 scrollbar-hide"
+              className="flex-1 overflow-y-auto px-8 pb-8 space-y-8 scrollbar-hide overscroll-contain"
             >
               {/* Amount Input - Large Numpad Trigger */}
               <div>
