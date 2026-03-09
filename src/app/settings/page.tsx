@@ -15,6 +15,8 @@ import {
   CheckSquare,
   Square,
   Trash,
+  RefreshCw,
+  Calendar,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -22,6 +24,7 @@ import {
   updateAccount,
   deleteAccount,
   deleteManyAccounts,
+  syncAccountBalance,
 } from "@/features/finance/server/account-actions";
 import {
   createCategory,
@@ -30,6 +33,8 @@ import {
   deleteManyCategories,
 } from "@/features/finance/server/category-actions";
 import { getCategoryColor } from "@/features/finance/lib/utils";
+import { YieldProfileEditor } from "@/features/finance/components/YieldProfileEditor";
+import { TaxSettings } from "@/features/finance/components/TaxSettings";
 
 const MOCK_USER_ID = "user_123";
 
@@ -87,6 +92,25 @@ export default function SettingsPage() {
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const [isBulkDeletingCategories, setIsBulkDeletingCategories] = useState(false);
   const [showBulkConfirmCategories, setShowBulkConfirmCategories] = useState(false);
+
+  // Sync Balance modal state
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [syncingAccount, setSyncingAccount] = useState<Account | null>(null);
+  const [syncFormData, setSyncFormData] = useState({
+    actualBalance: "",
+    effectiveDate: new Date().toISOString().split("T")[0],
+    reason: "",
+  });
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Yield Profile modal state
+  const [isYieldModalOpen, setIsYieldModalOpen] = useState(false);
+  const [editingYieldAccount, setEditingYieldAccount] = useState<{
+    id: string;
+    name: string;
+    type: string;
+  } | null>(null);
 
   useEffect(() => {
     loadData();
@@ -235,6 +259,70 @@ export default function SettingsPage() {
   const resetCategoryForm = () => {
     setCategoryFormData({ name: "", color: "" });
     setEditingCategory(null);
+  };
+
+  // Sync Balance handlers
+  const handleOpenSyncModal = (account: Account) => {
+    setSyncingAccount(account);
+    setSyncFormData({
+      actualBalance: "",
+      effectiveDate: new Date().toISOString().split("T")[0],
+      reason: "",
+    });
+    setSyncMessage(null);
+    setIsSyncModalOpen(true);
+  };
+
+  const handleSyncBalance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSyncing || !syncingAccount) return;
+
+    setIsSyncing(true);
+    setSyncMessage(null);
+
+    try {
+      const result = await syncAccountBalance({
+        accountId: syncingAccount.id,
+        actualBalance: parseFloat(syncFormData.actualBalance) || 0,
+        effectiveDate: syncFormData.effectiveDate,
+        reason: syncFormData.reason || "Balance synchronization",
+        userId: MOCK_USER_ID,
+      });
+
+      if (result.success) {
+        setSyncMessage({
+          type: "success",
+          text: result.message || "Balance synced successfully",
+        });
+        await loadData();
+        setTimeout(() => {
+          setIsSyncModalOpen(false);
+          setSyncMessage(null);
+        }, 1500);
+      } else {
+        setSyncMessage({
+          type: "error",
+          text: result.error || "Failed to sync balance",
+        });
+      }
+    } catch (error) {
+      setSyncMessage({
+        type: "error",
+        text: "An unexpected error occurred",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const resetSyncForm = () => {
+    setSyncFormData({
+      actualBalance: "",
+      effectiveDate: new Date().toISOString().split("T")[0],
+      reason: "",
+    });
+    setSyncMessage(null);
+    setSyncingAccount(null);
   };
 
   // Account bulk selection handlers
@@ -450,6 +538,29 @@ export default function SettingsPage() {
                     {/* Individual Actions - Only show when not in bulk selection mode */}
                     {selectedAccounts.size === 0 && (
                       <div className="flex items-center gap-2">
+                        {/* Yield Profile Button - Only for CASH and INVESTMENT */}
+                        {(account.type === "CASH" || account.type === "INVESTMENT") && (
+                          <button
+                            onClick={() => {
+                              setEditingYieldAccount({ id: account.id, name: account.name, type: account.type });
+                              setIsYieldModalOpen(true);
+                            }}
+                            className="p-2 hover:bg-emerald-500/20 rounded-full transition-colors text-slate-400 hover:text-emerald-400"
+                            title="Interest Settings"
+                            aria-label={`Interest settings for ${account.name}`}
+                          >
+                            <TrendingUp size={16} />
+                          </button>
+                        )}
+                        {/* Sync Balance Button - Amber for corrective action */}
+                        <button
+                          onClick={() => handleOpenSyncModal(account)}
+                          className="p-2 hover:bg-amber-500/20 rounded-full transition-colors text-slate-400 hover:text-amber-400"
+                          title="Sync Balance"
+                          aria-label={`Sync balance for ${account.name}`}
+                        >
+                          <RefreshCw size={16} />
+                        </button>
                         <button
                           onClick={() => handleEditAccount(account)}
                           className="p-2 hover:bg-slate-700 rounded-full transition-colors text-slate-400 hover:text-white"
@@ -628,6 +739,11 @@ export default function SettingsPage() {
             </button>
           </div>
         )}
+      </section>
+
+      {/* Tax Settings Section */}
+      <section className="mb-12 relative">
+        <TaxSettings userId={MOCK_USER_ID} />
       </section>
 
       {/* Bulk Delete Confirmation Modal - Accounts */}
@@ -949,6 +1065,143 @@ export default function SettingsPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Sync Balance Modal */}
+      {isSyncModalOpen && syncingAccount && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 rounded-2xl w-full max-w-md border border-slate-800">
+            <div className="flex items-center justify-between p-6 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                  <RefreshCw size={20} className="text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Sync Balance</h3>
+                  <p className="text-slate-400 text-xs">{syncingAccount.name}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setIsSyncModalOpen(false);
+                  resetSyncForm();
+                }}
+                className="p-2 hover:bg-slate-800 rounded-full transition-colors"
+              >
+                <X size={20} className="text-slate-400" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSyncBalance} className="p-6 space-y-4">
+              {/* Current Balance Display */}
+              <div className="bg-slate-800/50 rounded-xl p-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 text-xs uppercase tracking-wider">Current Balance</span>
+                  <span className="text-white font-bold text-lg">
+                    Rp {Number(syncingAccount.balance).toLocaleString("id-ID")}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-slate-400 text-xs mb-2 block">Actual Balance (from bank/statement)</label>
+                <input
+                  type="number"
+                  value={syncFormData.actualBalance}
+                  onChange={(e) =>
+                    setSyncFormData({ ...syncFormData, actualBalance: e.target.value })
+                  }
+                  placeholder="0"
+                  className="w-full bg-slate-800 p-3 rounded-xl text-white outline-none focus:ring-2 focus:ring-amber-500/50"
+                  required
+                  step="0.01"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-400 text-xs mb-2 block">Effective Date</label>
+                <div className="relative">
+                  <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <input
+                    type="date"
+                    value={syncFormData.effectiveDate}
+                    onChange={(e) =>
+                      setSyncFormData({ ...syncFormData, effectiveDate: e.target.value })
+                    }
+                    className="w-full bg-slate-800 p-3 pl-10 rounded-xl text-white outline-none focus:ring-2 focus:ring-amber-500/50"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-slate-400 text-xs mb-2 block">Reason (optional)</label>
+                <input
+                  type="text"
+                  value={syncFormData.reason}
+                  onChange={(e) =>
+                    setSyncFormData({ ...syncFormData, reason: e.target.value })
+                  }
+                  placeholder="e.g., Bank fee adjustment, forgotten transaction"
+                  className="w-full bg-slate-800 p-3 rounded-xl text-white outline-none focus:ring-2 focus:ring-amber-500/50"
+                />
+              </div>
+
+              {/* Success/Error Message */}
+              {syncMessage && (
+                <div className={`p-3 rounded-xl text-sm font-medium ${
+                  syncMessage.type === "success"
+                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                    : "bg-rose-500/20 text-rose-400 border border-rose-500/30"
+                }`}>
+                  {syncMessage.text}
+                </div>
+              )}
+
+              <div className="bg-slate-800/50 rounded-xl p-4">
+                <p className="text-slate-400 text-xs">
+                  <strong className="text-slate-300">Note:</strong> This will create a reconciliation transaction for the difference. 
+                  The transaction will be tagged as "System Reconciliation" for audit purposes.
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSyncing || !syncFormData.actualBalance}
+                className="w-full bg-amber-500 hover:bg-amber-600 disabled:bg-amber-500/50 disabled:cursor-not-allowed py-3 rounded-xl font-semibold text-slate-900 transition-colors flex items-center justify-center gap-2"
+              >
+                {isSyncing ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
+                    Syncing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={18} />
+                    Sync Balance
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Yield Profile Editor Modal */}
+      {isYieldModalOpen && editingYieldAccount && (
+        <YieldProfileEditor
+          accountId={editingYieldAccount.id}
+          userId={MOCK_USER_ID}
+          accountType={editingYieldAccount.type as "CASH" | "INVESTMENT"}
+          accountName={editingYieldAccount.name}
+          onClose={() => {
+            setIsYieldModalOpen(false);
+            setEditingYieldAccount(null);
+          }}
+          onSuccess={() => {
+            loadData();
+          }}
+        />
       )}
     </div>
   );

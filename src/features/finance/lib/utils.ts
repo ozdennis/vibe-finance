@@ -162,3 +162,106 @@ export function calculateIndonesianTax(yearlyIncome: number): number {
 
   return Math.round(tax);
 }
+
+/**
+ * Period resolver for temporal filtering
+ * Returns start and end dates for a given month/year context
+ */
+export interface PeriodFilter {
+  startDate: Date;
+  endDate: Date;
+  month: number;
+  year: number;
+  label: string;
+}
+
+/**
+ * Get period filter for a specific month/year
+ * @param month - 1-12 (defaults to current month)
+ * @param year - YYYY (defaults to current year)
+ */
+export function getPeriodFilter(month?: number, year?: number): PeriodFilter {
+  const now = new Date();
+  const targetMonth = month ?? now.getMonth() + 1;
+  const targetYear = year ?? now.getFullYear();
+
+  // Validate month
+  const safeMonth = Math.max(1, Math.min(12, targetMonth));
+
+  // Start of month
+  const startDate = new Date(targetYear, safeMonth - 1, 1);
+
+  // End of month (start of next month)
+  const endDate = new Date(targetYear, safeMonth, 0, 23, 59, 59, 999);
+
+  // Human-readable label
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  const label = `${monthNames[safeMonth - 1]} ${targetYear}`;
+
+  return {
+    startDate,
+    endDate,
+    month: safeMonth,
+    year: targetYear,
+    label,
+  };
+}
+
+/**
+ * Get current period filter (this month)
+ */
+export function getCurrentPeriodFilter(): PeriodFilter {
+  return getPeriodFilter();
+}
+
+/**
+ * Get previous month period filter
+ */
+export function getPreviousPeriodFilter(month?: number, year?: number): PeriodFilter {
+  const now = new Date();
+  const targetMonth = month ?? now.getMonth() + 1;
+  const targetYear = year ?? now.getFullYear();
+
+  let prevMonth = targetMonth - 1;
+  let prevYear = targetYear;
+
+  if (prevMonth < 1) {
+    prevMonth = 12;
+    prevYear--;
+  }
+
+  return getPeriodFilter(prevMonth, prevYear);
+}
+
+/**
+ * Get next month period filter
+ */
+export function getNextPeriodFilter(month?: number, year?: number): PeriodFilter {
+  const now = new Date();
+  const targetMonth = month ?? now.getMonth() + 1;
+  const targetYear = year ?? now.getFullYear();
+
+  let nextMonth = targetMonth + 1;
+  let nextYear = targetYear;
+
+  if (nextMonth > 12) {
+    nextMonth = 1;
+    nextYear++;
+  }
+
+  return getPeriodFilter(nextMonth, nextYear);
+}
+
+/**
+ * Get year-to-date period filter
+ */
+export function getYearToDatePeriodFilter(year?: number): PeriodFilter {
+  const now = new Date();
+  const targetYear = year ?? now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+
+  return getPeriodFilter(currentMonth, targetYear);
+}

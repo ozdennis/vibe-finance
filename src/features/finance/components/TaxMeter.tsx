@@ -1,22 +1,35 @@
 // src/features/finance/components/TaxMeter.tsx
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, DollarSign } from "lucide-react";
 import { formatIDR } from "../lib/utils";
 
 interface TaxMeterProps {
   yearlyIncome?: number;
   projectedTax?: number;
   paidTax?: number;
+  // Business tax
+  businessTaxBase?: number;
+  businessTaxDue?: number;
+  // Interest tax
+  interestTaxWithheld?: number;
+  // Withheld tax YTD
+  withheldTaxYtd?: number;
 }
 
 /**
  * Tax Projection Card
- * Shows estimated year-end tax based on income trends
- * Formula: (Current_Income * 12_Month_Projection) - Deductions
+ * Shows:
+ * - Estimated year-end personal tax (PPh 21)
+ * - Business Tax YTD due (Plastic Revenue + Affiliate net)
+ * - Interest Tax Withheld YTD (informational)
  */
 export function TaxMeter({
   yearlyIncome = 0,
   projectedTax = 0,
   paidTax = 0,
+  businessTaxBase = 0,
+  businessTaxDue = 0,
+  interestTaxWithheld = 0,
+  withheldTaxYtd = 0,
 }: TaxMeterProps) {
   // Calculate progress percentage
   const progress =
@@ -24,6 +37,9 @@ export function TaxMeter({
 
   // Simple tax estimation (Indonesia PPh 21 progressive rates simplified)
   const estimatedTax = yearlyIncome > 0 ? calculateIndonesianTax(yearlyIncome) : 0;
+
+  // Net business tax due after withheld tax
+  const netBusinessTaxDue = Math.max(0, businessTaxDue - withheldTaxYtd);
 
   return (
     <section className="glass-panel rounded-3xl p-6 mt-8 relative overflow-hidden group">
@@ -36,26 +52,69 @@ export function TaxMeter({
             <TrendingUp size={24} className="text-amber-400" />
           </div>
           <div>
-            <h3 className="text-zinc-100 font-bold text-lg tracking-tight">Tax Projection</h3>
-            <p className="text-zinc-500 text-sm font-medium mt-0.5">Est. Year-End Liability</p>
+            <h3 className="text-zinc-100 font-bold text-lg tracking-tight">Tax Overview</h3>
+            <p className="text-zinc-500 text-sm font-medium mt-0.5">Business & Personal Tax</p>
           </div>
         </div>
       </div>
 
-      {/* Projected Amount */}
-      <div className="mb-8 relative z-10 bg-zinc-900/40 border border-white/5 rounded-2xl p-5 hover:bg-zinc-800/60 transition-colors">
-        <p className="text-[10px] uppercase tracking-widest font-bold text-zinc-500 mb-2">Estimated Amount</p>
+      {/* Business Tax Section */}
+      {businessTaxBase > 0 && (
+        <div className="mb-6 relative z-10 bg-zinc-900/40 border border-white/5 rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <DollarSign size={16} className="text-amber-400" />
+            <p className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">Business Tax YTD</p>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-zinc-400">Tax Base</span>
+              <span className="text-sm font-bold text-white">{formatIDR(businessTaxBase)}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-zinc-400">Estimated Due (22%)</span>
+              <span className="text-sm font-bold text-amber-400">{formatIDR(businessTaxDue)}</span>
+            </div>
+            {withheldTaxYtd > 0 && (
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-zinc-400">Withheld Tax YTD</span>
+                <span className="text-sm font-bold text-emerald-400">-{formatIDR(withheldTaxYtd)}</span>
+              </div>
+            )}
+            <div className="border-t border-white/5 pt-2 flex justify-between items-center">
+              <span className="text-xs text-zinc-300 font-semibold">Net Due</span>
+              <span className="text-lg font-bold text-amber-400">{formatIDR(netBusinessTaxDue)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Interest Tax Withheld */}
+      {interestTaxWithheld > 0 && (
+        <div className="mb-6 relative z-10 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <DollarSign size={16} className="text-emerald-400" />
+            <p className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">Interest Tax Withheld YTD</p>
+          </div>
+          <p className="text-2xl font-bold tracking-tight text-emerald-400">{formatIDR(interestTaxWithheld)}</p>
+          <p className="text-xs text-zinc-500 mt-1">Informational - separate from business tax</p>
+        </div>
+      )}
+
+      {/* Personal Tax Projection */}
+      <div className="relative z-10 bg-zinc-900/40 border border-white/5 rounded-2xl p-5 hover:bg-zinc-800/60 transition-colors">
+        <p className="text-[10px] uppercase tracking-widest font-bold text-zinc-500 mb-2">Personal Tax (Est.)</p>
         <p className="text-3xl font-bold tracking-tight text-amber-400 text-shadow-sm">
           <span className="text-sm mr-1 opacity-70">Rp</span>
           {Number(projectedTax || estimatedTax).toLocaleString('id-ID')}
         </p>
         <p className="text-xs text-zinc-500 mt-2 font-medium">
-          Based on current income trends & Indonesian PPh 21
+          Based on Indonesian PPh 21
         </p>
       </div>
 
       {/* Progress Bar */}
-      <div className="space-y-3 relative z-10">
+      <div className="space-y-3 relative z-10 mt-6">
         <div className="flex justify-between items-baseline">
           <span className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">Paid YTD</span>
           <span className="text-emerald-400 font-bold tracking-tight text-shadow-sm">
@@ -75,20 +134,6 @@ export function TaxMeter({
           </p>
         </div>
       </div>
-
-      {/* Info Note */}
-      <div className="mt-8 p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl relative z-10">
-        <p className="text-xs text-amber-200/80 font-medium leading-relaxed flex items-start gap-2">
-          <span className="text-amber-400 mt-0.5">💡</span>
-          <span>
-            Set aside{" "}
-            <strong className="text-amber-400 font-bold drop-shadow-sm mx-1">
-              Rp {Number((projectedTax || estimatedTax) - paidTax).toLocaleString('id-ID')}
-            </strong>{" "}
-            for the upcoming tax season.
-          </span>
-        </p>
-      </div>
     </section>
   );
 }
@@ -107,12 +152,14 @@ function calculateIndonesianTax(yearlyIncome: number): number {
   ];
 
   let tax = 0;
-  let remainingIncome = yearlyIncome;
   let previousLimit = 0;
 
   // Apply tax-free threshold (PTKP) for single individual
   const ptkp = 54000000; // Basic tax-free allowance
   const taxableIncome = Math.max(0, yearlyIncome - ptkp);
+
+  // Apply brackets to taxableIncome (after PTKP), not yearlyIncome
+  let remainingIncome = taxableIncome;
 
   for (const bracket of brackets) {
     const bracketRange = bracket.limit - previousLimit;

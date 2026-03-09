@@ -1,6 +1,7 @@
 // src/features/finance/components/Dashboard.tsx
 import { Suspense } from "react";
-import { getNetLiquidity, getCategories, getYearToDateSummary, getMonthlyTrend, getRecentTransactions, getAllCreditCardStatus } from "../server/queries";
+import { getNetLiquidity, getCategories, getYearToDateSummary, getMonthlyTrend, getRecentTransactions, getAllCreditCardStatus, getInvestmentMTDWithInterest } from "../server/queries";
+import { getTaxSummary } from "../server/tax-actions";
 import { NetLiquidityHero } from "./NetLiquidityHero";
 import { AccountGrid, AccountGridSkeleton } from "./AccountGrid";
 import { TaxMeter, TaxMeterSkeleton } from "./TaxMeter";
@@ -13,9 +14,13 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import { Settings } from "lucide-react";
 import Link from "next/link";
 import { calculateIndonesianTax } from "../lib/utils";
+import { MonthPicker } from "./MonthPicker";
+import { InvestmentShelf, InvestmentShelfSkeleton } from "./InvestmentShelf";
 
 interface DashboardProps {
   userId: string;
+  month?: number;
+  year?: number;
 }
 
 // Force dynamic rendering - NO CACHING
@@ -23,7 +28,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-export default async function Dashboard({ userId }: DashboardProps) {
+export default async function Dashboard({ userId, month, year }: DashboardProps) {
   let accounts: {
     id: string;
     name: string;
@@ -34,30 +39,40 @@ export default async function Dashboard({ userId }: DashboardProps) {
   let netLiquidity = 0;
   let cashTotal = 0;
   let debtTotal = 0;
+  let investmentsTotal = 0;
   let categories: { id: string; name: string }[] = [];
   let yearlyIncome = 0;
   let projectedTax = 0;
   let paidTax = 0;
   let transactions: any[] = [];
   let creditCards: any[] = [];
+  let investmentData: any = null;
+  let taxSummaryData: any = null;
+
+  const period = month && year ? { month, year } : undefined;
 
   try {
-    const [liquidityData, categoriesData, taxData, trendData, transactionsData, creditCardData] = await Promise.all([
-      getNetLiquidity(userId),
+    const [liquidityData, categoriesData, taxData, trendData, transactionsData, creditCardData, investmentMTDData, taxSummary] = await Promise.all([
+      getNetLiquidity(userId), // Real-time balances (no period filter)
       getCategories(userId),
-      getYearToDateSummary(userId),
-      getMonthlyTrend(userId, 6),
-      getRecentTransactions(userId, 10),
+      getYearToDateSummary(userId, period), // Period-filtered for analytics
+      getMonthlyTrend(userId, 6, period),
+      getRecentTransactions(userId, 10, period),
       getAllCreditCardStatus(userId),
+      getInvestmentMTDWithInterest(userId, period),
+      getTaxSummary({ userId, month: period?.month, year: period?.year }),
     ]);
     accounts = liquidityData.accounts;
     netLiquidity = liquidityData.netLiquidity;
     cashTotal = liquidityData.cashTotal;
     debtTotal = liquidityData.debtTotal;
+    investmentsTotal = liquidityData.investmentsTotal;
     categories = categoriesData;
     yearlyIncome = taxData.totalIncome;
     transactions = transactionsData;
     creditCards = creditCardData;
+    investmentData = investmentMTDData;
+    taxSummaryData = taxSummary;
 
     // Calculate projected tax using monthly trends
     const monthlyIncomes = trendData.map(m => m.income);
@@ -94,6 +109,11 @@ export default async function Dashboard({ userId }: DashboardProps) {
 
   return (
     <div className="min-h-screen bg-transparent text-zinc-300 p-4 md:p-8 pb-32 max-w-7xl mx-auto">
+      {/* Header with Month Picker */}
+      <div className="mb-8">
+        <MonthPicker currentMonth={month} currentYear={year} />
+      </div>
+
       {/* Header with Settings */}
       <div className="flex justify-between items-center mb-8 sm:mb-12">
         <div className="relative">
@@ -125,14 +145,24 @@ export default async function Dashboard({ userId }: DashboardProps) {
 
       {/* Error Boundary for entire dashboard */}
       <ErrorBoundary name="Dashboard">
-        {/* Net Liquidity Hero */}
+        {/* Net Liquidity Hero - Real-time (not affected by period) */}
         <NetLiquidityHero
           netLiquidity={netLiquidity}
           cashTotal={cashTotal}
           debtTotal={debtTotal}
+          investmentsTotal={investmentsTotal}
         />
 
-        {/* Account Grid with Horizontal Scroll */}
+        {/* Investment Shelf - Dedicated section for INVESTMENT accounts */}
+        {investmentData && investmentData.accounts.length > 0 && (
+          <Suspense fallback={<InvestmentShelfSkeleton />}>
+            <ErrorBoundary name="InvestmentShelf">
+              <InvestmentShelf investmentData={investmentData} />
+            </ErrorBoundary>
+          </Suspense>
+        )}
+
+        {/* Account Grid with Horizontal Scroll (excludes investments) */}
         <Suspense fallback={<AccountGridSkeleton />}>
           <ErrorBoundary name="AccountGrid">
             <AccountGrid accounts={accounts} />
@@ -146,6 +176,10 @@ export default async function Dashboard({ userId }: DashboardProps) {
               yearlyIncome={yearlyIncome}
               projectedTax={projectedTax}
               paidTax={paidTax}
+              businessTaxBase={taxSummaryData?.businessTaxBase || 0}
+              businessTaxDue={taxSummaryData?.businessTaxDue || 0}
+              interestTaxWithheld={taxSummaryData?.interestTaxWithheld || 0}
+              withheldTaxYtd={taxSummaryData?.withheldTaxYtd || 0}
             />
           </ErrorBoundary>
         </Suspense>
@@ -153,7 +187,7 @@ export default async function Dashboard({ userId }: DashboardProps) {
         {/* Monthly Trend Chart */}
         <Suspense fallback={<MonthlyTrendChartSkeleton />}>
           <ErrorBoundary name="MonthlyTrendChart">
-            <MonthlyTrendChart userId={userId} months={6} />
+            <MonthlyTrendChart userId={userId} months={6} period={period} />
           </ErrorBoundary>
         </Suspense>
 

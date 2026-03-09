@@ -1,11 +1,19 @@
 // src/features/finance/server/queries.ts
 import { db } from "@/lib/db";
+import { getPeriodFilter, type PeriodFilter } from "../lib/utils";
+import { getTaxSummary, getBusinessTaxYTD, getInterestTaxWithheldYTD } from "./tax-actions";
+import { getEstimatedInterestMTD, getTotalInterestMTD, calculateTimeDepositProjection } from "./interest-actions";
 
 /**
  * Calculates Net Liquidity: (Cash + E-Wallets) - Credit Card Debt
  * This is the "Real Money" metric users need to avoid overspending.
+ * 
+ * @param userId - User ID for filtering
+ * @param period - Optional period filter (month/year). If not provided, returns current balances.
  */
-export async function getNetLiquidity(userId: string) {
+export async function getNetLiquidity(userId: string, period?: { month?: number; year?: number }) {
+  const periodFilter = period ? getPeriodFilter(period.month, period.year) : null;
+
   const accounts = await db.account.findMany({
     where: { createdById: userId, deletedAt: null },
     orderBy: { createdAt: "asc" },
@@ -15,20 +23,51 @@ export async function getNetLiquidity(userId: string) {
       type: true,
       balance: true,
       creditLimit: true,
+      yieldProfile: {
+        select: {
+          productType: true,
+          depositTermMonths: true,
+          depositStartDate: true,
+        },
+      },
     },
   });
 
-  const cash = accounts
-    .filter((a) => a.type === "CASH" || a.type === "E_WALLET")
-    .reduce((acc, curr) => acc + Number(curr.balance), 0);
+  let cash = 0;
+  let debt = 0;
+  let investments = 0;
 
-  const debt = accounts
-    .filter((a) => a.type === "CREDIT_CARD")
-    .reduce((acc, curr) => acc + Number(curr.balance), 0);
+  if (periodFilter) {
+    // When period is specified, calculate balances based on transactions within that period
+    for (const account of accounts) {
+      const balance = await getAccountBalanceAtPeriod(account.id, userId, periodFilter);
+      
+      if (account.type === "CASH" || account.type === "E_WALLET") {
+        cash += balance;
+      } else if (account.type === "CREDIT_CARD") {
+        debt += balance;
+      } else if (account.type === "INVESTMENT") {
+        investments += balance;
+      }
+    }
+  } else {
+    // No period - use current balances
+    const cashAccounts = accounts
+      .filter((a) => a.type === "CASH" || a.type === "E_WALLET")
+      .reduce((acc, curr) => acc + Number(curr.balance), 0);
 
-  const investments = accounts
-    .filter((a) => a.type === "INVESTMENT")
-    .reduce((acc, curr) => acc + Number(curr.balance), 0);
+    const debtAccounts = accounts
+      .filter((a) => a.type === "CREDIT_CARD")
+      .reduce((acc, curr) => acc + Number(curr.balance), 0);
+
+    const investmentAccounts = accounts
+      .filter((a) => a.type === "INVESTMENT")
+      .reduce((acc, curr) => acc + Number(curr.balance), 0);
+
+    cash = cashAccounts;
+    debt = debtAccounts;
+    investments = investmentAccounts;
+  }
 
   // Convert to plain objects with number types
   const serializedAccounts = accounts.map(acc => ({
@@ -37,6 +76,9 @@ export async function getNetLiquidity(userId: string) {
     type: acc.type,
     balance: Number(acc.balance),
     creditLimit: acc.creditLimit ? Number(acc.creditLimit) : null,
+    productType: acc.yieldProfile?.productType ?? null,
+    depositTermMonths: acc.yieldProfile?.depositTermMonths ?? null,
+    depositStartDate: acc.yieldProfile?.depositStartDate?.toISOString() ?? null,
   }));
 
   return {
@@ -46,6 +88,60 @@ export async function getNetLiquidity(userId: string) {
     debtTotal: debt,
     investmentsTotal: investments,
   };
+}
+
+/**
+ * Helper: Calculate account balance at a specific period
+ * Starts from current balance and works backwards
+ */
+async function getAccountBalanceAtPeriod(
+  accountId: string,
+  userId: string,
+  period: PeriodFilter
+): Promise<number> {
+  // Get all transactions affecting this account up to end of period
+  const transactions = await db.transaction.findMany({
+    where: {
+      createdById: userId,
+      date: { lte: period.endDate },
+      OR: [{ fromAccountId: accountId }, { toAccountId: accountId }],
+    },
+    select: {
+      amount: true,
+      type: true,
+      fromAccountId: true,
+      toAccountId: true,
+      date: true,
+    },
+  });
+
+  // Calculate running balance up to end of period
+  let balance = 0;
+  for (const tx of transactions) {
+    const amount = Number(tx.amount);
+    if (tx.fromAccountId === accountId) {
+      if (tx.type === "EXPENSE") {
+        balance -= amount;
+      } else if (tx.type === "TRANSFER") {
+        balance -= amount;
+      } else if (tx.type === "INCOME") {
+        // Income to this account (rare, but possible for reversals)
+        balance += amount;
+      }
+    }
+    if (tx.toAccountId === accountId) {
+      if (tx.type === "INCOME") {
+        balance += amount;
+      } else if (tx.type === "TRANSFER") {
+        balance += amount;
+      } else if (tx.type === "EXPENSE") {
+        // Expense from this account (shouldn't happen, but handle it)
+        balance -= amount;
+      }
+    }
+  }
+
+  return balance;
 }
 
 /**
@@ -60,16 +156,33 @@ export async function getCategories(userId: string) {
 
 /**
  * Gets recent transactions for the user
+ * @param userId - User ID for filtering
+ * @param limit - Maximum number of transactions to return
+ * @param period - Optional period filter (month/year). Filters by Transaction.date.
  */
-export async function getRecentTransactions(userId: string, limit = 20) {
+export async function getRecentTransactions(
+  userId: string,
+  limit = 20,
+  period?: { month?: number; year?: number }
+) {
+  const periodFilter = period ? getPeriodFilter(period.month, period.year) : null;
+
   const transactions = await db.transaction.findMany({
-    where: { createdById: userId },
+    where: periodFilter
+      ? {
+          createdById: userId,
+          date: {
+            gte: periodFilter.startDate,
+            lte: periodFilter.endDate,
+          },
+        }
+      : { createdById: userId },
     include: {
       category: { select: { id: true, name: true, color: true } },
       fromAccount: { select: { id: true, name: true, type: true } },
       toAccount: { select: { id: true, name: true, type: true } },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { date: "desc" },
     take: limit,
   });
 
@@ -82,33 +195,47 @@ export async function getRecentTransactions(userId: string, limit = 20) {
 
 /**
  * Gets transactions grouped by category for a date range
+ * @param userId - User ID for filtering
+ * @param startDate - Start of period (deprecated, use period instead)
+ * @param endDate - End of period (deprecated, use period instead)
+ * @param period - Optional period filter (month/year). Filters by Transaction.date.
  */
 export async function getTransactionsByCategory(
   userId: string,
-  startDate: Date,
-  endDate: Date
+  startDate?: Date,
+  endDate?: Date,
+  period?: { month?: number; year?: number }
 ) {
+  const periodFilter = period ? getPeriodFilter(period.month, period.year) : null;
+  const effectiveStart = startDate || (periodFilter ? periodFilter.startDate : new Date());
+  const effectiveEnd = endDate || (periodFilter ? periodFilter.endDate : new Date());
+
   const transactions = await db.transaction.findMany({
     where: {
       createdById: userId,
       type: "EXPENSE",
-      createdAt: {
-        gte: startDate,
-        lte: endDate,
+      date: {
+        gte: effectiveStart,
+        lte: effectiveEnd,
       },
+    },
+    include: {
+      category: { select: { id: true, name: true, color: true } },
     },
   });
 
-  // Group by categoryId (category names would be resolved client-side)
+  // Group by categoryId with category info
   const grouped = transactions.reduce((acc, tx) => {
     const categoryId = tx.categoryId || "uncategorized";
+    const categoryName = tx.category?.name || categoryId;
 
     if (!acc[categoryId]) {
       acc[categoryId] = {
         categoryId,
-        categoryName: categoryId, // Use ID as name for now
+        categoryName,
         total: 0,
         count: 0,
+        color: tx.category?.color || null,
       };
     }
 
@@ -116,34 +243,46 @@ export async function getTransactionsByCategory(
     acc[categoryId].count += 1;
 
     return acc;
-  }, {} as Record<string, { categoryId: string; categoryName: string; total: number; count: number }>);
+  }, {} as Record<string, { categoryId: string; categoryName: string; total: number; count: number; color: string | null }>);
 
   return Object.values(grouped).sort((a, b) => b.total - a.total);
 }
 
 /**
  * Calculates monthly income vs expense trend
+ * @param userId - User ID for filtering
+ * @param months - Number of months to include (default: 6)
+ * @param period - Optional period filter. If provided, returns trend up to that month.
  */
-export async function getMonthlyTrend(userId: string, months = 6) {
+export async function getMonthlyTrend(
+  userId: string,
+  months = 6,
+  period?: { month?: number; year?: number }
+) {
   const now = new Date();
-  const startDate = new Date(now.getFullYear(), now.getMonth() - months + 1, 1);
+  const targetYear = period?.year ?? now.getFullYear();
+  const targetMonth = period?.month ?? (now.getMonth() + 1);
+
+  // Calculate start date: first day of (targetMonth - months + 1), end date: last day of targetMonth
+  const startDate = new Date(targetYear, targetMonth - months, 1);
+  const endDate = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
 
   const transactions = await db.transaction.findMany({
     where: {
       createdById: userId,
-      createdAt: { gte: startDate },
+      date: { gte: startDate, lte: endDate },
       type: { in: ["INCOME", "EXPENSE"] },
     },
     select: {
       amount: true,
       type: true,
-      createdAt: true,
+      date: true,
     },
   });
 
   // Group by month
   const monthlyData = transactions.reduce((acc, tx) => {
-    const monthKey = `${tx.createdAt.getFullYear()}-${String(tx.createdAt.getMonth() + 1).padStart(2, "0")}`;
+    const monthKey = `${tx.date.getFullYear()}-${String(tx.date.getMonth() + 1).padStart(2, "0")}`;
 
     if (!acc[monthKey]) {
       acc[monthKey] = {
@@ -167,15 +306,22 @@ export async function getMonthlyTrend(userId: string, months = 6) {
 
 /**
  * Gets year-to-date income and expenses for tax calculation
+ * @param userId - User ID for filtering
+ * @param period - Optional period filter. If provided, calculates for that year.
  */
-export async function getYearToDateSummary(userId: string) {
+export async function getYearToDateSummary(
+  userId: string,
+  period?: { month?: number; year?: number }
+) {
   const now = new Date();
-  const startOfYear = new Date(now.getFullYear(), 0, 1);
+  const targetYear = period?.year ?? now.getFullYear();
+  const startOfYear = new Date(targetYear, 0, 1);
+  const endOfYear = new Date(targetYear, 11, 31, 23, 59, 59, 999);
 
   const transactions = await db.transaction.findMany({
     where: {
       createdById: userId,
-      createdAt: { gte: startOfYear },
+      date: { gte: startOfYear, lte: endOfYear },
       type: { in: ["INCOME", "EXPENSE"] },
     },
     select: {
@@ -202,6 +348,119 @@ export async function getYearToDateSummary(userId: string) {
     totalExpenses,
     taxDeductibleExpenses,
     netSavings: totalIncome - totalExpenses,
+  };
+}
+
+// ============================================
+// INVESTMENT SHELF QUERIES
+// ============================================
+
+/**
+ * Get investment account data with MTD (Month-to-Date) growth
+ * MTD Growth = Net monthly flows (incoming - outgoing investment transactions)
+ * 
+ * @param userId - User ID for filtering
+ * @param period - Optional period filter. Defaults to current month.
+ */
+export async function getInvestmentMTD(
+  userId: string,
+  period?: { month?: number; year?: number }
+) {
+  const periodFilter = period ? getPeriodFilter(period.month, period.year) : getPeriodFilter();
+
+  // Get all investment accounts
+  const investmentAccounts = await db.account.findMany({
+    where: {
+      createdById: userId,
+      type: "INVESTMENT",
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+      name: true,
+      balance: true,
+      currency: true,
+    },
+  });
+
+  // Calculate MTD growth for each account
+  const accountData = await Promise.all(
+    investmentAccounts.map(async (account) => {
+      // Get all investment transactions within the period
+      const transactions = await db.transaction.findMany({
+        where: {
+          createdById: userId,
+          date: {
+            gte: periodFilter.startDate,
+            lte: periodFilter.endDate,
+          },
+          OR: [
+            { fromAccountId: account.id },
+            { toAccountId: account.id },
+          ],
+          type: { in: ["INCOME", "EXPENSE", "TRANSFER"] },
+        },
+        select: {
+          amount: true,
+          type: true,
+          fromAccountId: true,
+          toAccountId: true,
+          description: true,
+          date: true,
+        },
+      });
+
+      // Calculate MTD growth: incoming - outgoing
+      let mtdGrowth = 0;
+      const inflows: number[] = [];
+      const outflows: number[] = [];
+
+      for (const tx of transactions) {
+        const amount = Number(tx.amount);
+
+        // Track money coming INTO the investment account
+        if (tx.toAccountId === account.id) {
+          if (tx.type === "INCOME" || tx.type === "TRANSFER") {
+            inflows.push(amount);
+            mtdGrowth += amount;
+          }
+        }
+
+        // Track money going OUT of the investment account
+        if (tx.fromAccountId === account.id) {
+          if (tx.type === "EXPENSE" || tx.type === "TRANSFER") {
+            outflows.push(amount);
+            mtdGrowth -= amount;
+          }
+        }
+      }
+
+      return {
+        accountId: account.id,
+        name: account.name,
+        currentBalance: Number(account.balance),
+        currency: account.currency,
+        mtdGrowth,
+        mtdInflows: inflows.reduce((a, b) => a + b, 0),
+        mtdOutflows: outflows.reduce((a, b) => a + b, 0),
+        transactionCount: transactions.length,
+      };
+    })
+  );
+
+  // Calculate totals
+  const totalBalance = accountData.reduce((acc, curr) => acc + curr.currentBalance, 0);
+  const totalMtdGrowth = accountData.reduce((acc, curr) => acc + curr.mtdGrowth, 0);
+
+  return {
+    accounts: accountData,
+    totalBalance,
+    totalMtdGrowth,
+    period: {
+      month: periodFilter.month,
+      year: periodFilter.year,
+      label: periodFilter.label,
+    },
   };
 }
 
@@ -386,15 +645,15 @@ export async function getAccountBalanceHistory(
     where: {
       createdById: userId,
       OR: [{ fromAccountId: accountId }, { toAccountId: accountId }],
-      createdAt: { gte: startDate },
+      date: { gte: startDate },
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: { date: "asc" },
     select: {
       amount: true,
       type: true,
       fromAccountId: true,
       toAccountId: true,
-      createdAt: true,
+      date: true,
     },
   });
 
@@ -417,7 +676,7 @@ export async function getAccountBalanceHistory(
     }
 
     history.push({
-      date: tx.createdAt,
+      date: tx.date,
       balance: runningBalance,
     });
   }
@@ -450,4 +709,258 @@ export async function getAuditLogs(userId: string) {
  */
 export async function getCreditCardStatements(userId: string) {
   return await getAllCreditCardStatus(userId);
+}
+
+// ============================================
+// ENHANCED INVESTMENT SHELF WITH INTEREST
+// ============================================
+
+/**
+ * Get investment account data with enhanced MTD breakdown:
+ * - Flow MTD: Net monthly flows (incoming - outgoing investment transactions)
+ * - Interest MTD: Estimated or posted interest (with tax info)
+ * - Total MTD: Flow + Interest
+ */
+export async function getInvestmentMTDWithInterest(
+  userId: string,
+  period?: { month?: number; year?: number }
+) {
+  const periodFilter = period ? getPeriodFilter(period.month, period.year) : getPeriodFilter();
+
+  // Get all investment accounts
+  const investmentAccounts = await db.account.findMany({
+    where: {
+      createdById: userId,
+      type: "INVESTMENT",
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+      name: true,
+      balance: true,
+      currency: true,
+      yieldProfile: {
+        select: {
+          productType: true,
+          rateValue: true,
+          rateUnit: true,
+          withholdingTaxRatePct: true,
+          depositTermMonths: true,
+          depositStartDate: true,
+          depositPrincipal: true,
+        },
+      },
+    },
+  });
+
+  // Calculate MTD growth and interest for each account
+  const accountData = await Promise.all(
+    investmentAccounts.map(async (account) => {
+      // Get all investment transactions within the period
+      const transactions = await db.transaction.findMany({
+        where: {
+          createdById: userId,
+          date: {
+            gte: periodFilter.startDate,
+            lte: periodFilter.endDate,
+          },
+          OR: [
+            { fromAccountId: account.id },
+            { toAccountId: account.id },
+          ],
+          type: { in: ["INCOME", "EXPENSE", "TRANSFER"] },
+        },
+        select: {
+          amount: true,
+          type: true,
+          fromAccountId: true,
+          toAccountId: true,
+          description: true,
+          date: true,
+        },
+      });
+
+      // Calculate Flow MTD: incoming - outgoing
+      let flowMTD = 0;
+      const inflows: number[] = [];
+      const outflows: number[] = [];
+
+      for (const tx of transactions) {
+        const amount = Number(tx.amount);
+
+        // Track money coming INTO the investment account
+        if (tx.toAccountId === account.id) {
+          if (tx.type === "INCOME" || tx.type === "TRANSFER") {
+            inflows.push(amount);
+            flowMTD += amount;
+          }
+        }
+
+        // Track money going OUT of the investment account
+        if (tx.fromAccountId === account.id) {
+          if (tx.type === "EXPENSE" || tx.type === "TRANSFER") {
+            outflows.push(amount);
+            flowMTD -= amount;
+          }
+        }
+      }
+
+      // Get Interest MTD (estimated or posted)
+      // For TIME_DEPOSIT, interest is only recognized at maturity
+      let interestNet = 0;
+      let interestGross = 0;
+      let interestTax = 0;
+      let isInterestEstimated = true;
+      let interestDaysAccrued = 0;
+
+      // TIME_DEPOSIT handling
+      const isTimeDeposit = account.yieldProfile?.productType === "TIME_DEPOSIT";
+      let yieldMode: "TIME_DEPOSIT" | "FLEXI" = isTimeDeposit ? "TIME_DEPOSIT" : "FLEXI";
+      let maturityDate: string | null = null;
+      let projectedInterestGross: number | null = null;
+      let projectedInterestTax: number | null = null;
+      let projectedInterestNet: number | null = null;
+      let isMatured = false;
+
+      if (isTimeDeposit && account.yieldProfile?.depositStartDate && account.yieldProfile.depositTermMonths) {
+        // Calculate maturity date
+        const depositStartDate = account.yieldProfile.depositStartDate;
+        const termMonths = account.yieldProfile.depositTermMonths;
+        const maturity = new Date(depositStartDate);
+        maturity.setMonth(maturity.getMonth() + termMonths);
+        maturityDate = maturity.toISOString();
+
+        // Check if matured
+        isMatured = new Date() >= maturity;
+
+        // Calculate projected interest at maturity
+        const projection = await calculateTimeDepositProjection({
+          principal: account.yieldProfile.depositPrincipal ? Number(account.yieldProfile.depositPrincipal) : Number(account.balance),
+          annualRatePct: Number(account.yieldProfile.rateValue),
+          termMonths: account.yieldProfile.depositTermMonths,
+          taxRatePct: Number(account.yieldProfile.withholdingTaxRatePct),
+          depositStartDate,
+        });
+
+        projectedInterestGross = projection.grossInterest;
+        projectedInterestTax = projection.taxWithheld;
+        projectedInterestNet = projection.netInterest;
+
+        // Interest MTD: only recognized in maturity month
+        const isMaturityMonth = 
+          periodFilter.year === maturity.getFullYear() && 
+          periodFilter.month === maturity.getMonth() + 1;
+
+        if (isMaturityMonth) {
+          interestNet = projectedInterestNet;
+          interestGross = projectedInterestGross;
+          interestTax = projectedInterestTax;
+        }
+        // Before maturity: interestMTD = 0
+      } else {
+        // FLEXI - use existing interest calculation
+        const interestMTD = await getEstimatedInterestMTD({
+          accountId: account.id,
+          userId,
+          periodMonth: periodFilter.month,
+          periodYear: periodFilter.year,
+        });
+
+        interestNet = interestMTD?.netInterest ?? 0;
+        interestGross = interestMTD?.grossInterest ?? 0;
+        interestTax = interestMTD?.taxWithheld ?? 0;
+        isInterestEstimated = interestMTD?.isEstimated ?? true;
+        interestDaysAccrued = interestMTD?.daysAccrued ?? 0;
+      }
+
+      // Total MTD = Flow + Interest (net)
+      const totalMTD = flowMTD + interestNet;
+
+      return {
+        accountId: account.id,
+        name: account.name,
+        currentBalance: Number(account.balance),
+        currency: account.currency,
+        flowMTD,
+        flowInflows: inflows.reduce((a, b) => a + b, 0),
+        flowOutflows: outflows.reduce((a, b) => a + b, 0),
+        interestMTD: interestNet,
+        interestGross,
+        interestTax,
+        isInterestEstimated,
+        interestDaysAccrued,
+        totalMTD,
+        transactionCount: transactions.length,
+        // TIME_DEPOSIT fields
+        yieldMode,
+        depositTermMonths: account.yieldProfile?.depositTermMonths ?? null,
+        maturityDate,
+        projectedInterestGross,
+        projectedInterestTax,
+        projectedInterestNet,
+        isMatured,
+      };
+    })
+  );
+
+  // Calculate totals
+  const totalBalance = accountData.reduce((acc, curr) => acc + curr.currentBalance, 0);
+  const totalFlowMTD = accountData.reduce((acc, curr) => acc + curr.flowMTD, 0);
+  const totalInterestMTD = accountData.reduce((acc, curr) => acc + curr.interestMTD, 0);
+  const totalMTD = accountData.reduce((acc, curr) => acc + curr.totalMTD, 0);
+
+  return {
+    accounts: accountData,
+    totalBalance,
+    totalFlowMTD,
+    totalInterestMTD,
+    totalMTD,
+    period: {
+      month: periodFilter.month,
+      year: periodFilter.year,
+      label: periodFilter.label,
+    },
+  };
+}
+
+// ============================================
+// CASH ACCOUNT INTEREST SUMMARY
+// ============================================
+
+/**
+ * Get interest MTD for all cash accounts (for AccountGrid display)
+ */
+export async function getCashAccountInterestMTD(
+  userId: string,
+  period?: { month?: number; year?: number }
+) {
+  // Fetch eligible CASH account ids first
+  const cashAccountsResult = await db.account.findMany({
+    where: { createdById: userId, type: "CASH", deletedAt: null },
+    select: { id: true },
+  });
+  const cashAccountIds = new Set(cashAccountsResult.map(a => a.id));
+
+  const result = await getTotalInterestMTD({
+    userId,
+    periodMonth: period?.month,
+    periodYear: period?.year,
+  });
+
+  // Filter breakdown synchronously using the Set
+  const cashAccountBreakdown = result.accountBreakdown.filter(item =>
+    cashAccountIds.has(item.accountId)
+  );
+
+  // Return totals for filtered cash breakdown only
+  const totalGross = cashAccountBreakdown.reduce((sum, a) => sum + a.grossInterest, 0);
+  const totalTax = cashAccountBreakdown.reduce((sum, a) => sum + a.taxWithheld, 0);
+  const totalNet = cashAccountBreakdown.reduce((sum, a) => sum + a.netInterest, 0);
+
+  return {
+    totalGross,
+    totalTax,
+    totalNet,
+    cashAccountBreakdown,
+  };
 }

@@ -4,6 +4,50 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { AccountSchema } from "../constants/schemas";
+import { getOrCreateSystemReconciliationCategory } from "./category-actions";
+
+/**
+ * Serialize Prisma Account model to plain JSON-safe object
+ * Converts Decimal and Date objects to primitives
+ */
+function serializeAccount(account: any) {
+  return {
+    id: account.id,
+    name: account.name,
+    type: account.type,
+    balance: Number(account.balance),
+    creditLimit: account.creditLimit !== null ? Number(account.creditLimit) : null,
+    currency: account.currency,
+    statementDay: account.statementDay,
+    dueDay: account.dueDay,
+    createdAt: account.createdAt?.toISOString() ?? null,
+    updatedAt: account.updatedAt?.toISOString() ?? null,
+    deletedAt: account.deletedAt?.toISOString() ?? null,
+    createdById: account.createdById,
+    updatedById: account.updatedById,
+  };
+}
+
+/**
+ * Serialize CreditCardStatement to plain JSON-safe object
+ */
+function serializeStatement(statement: any) {
+  return {
+    id: statement.id,
+    accountId: statement.accountId,
+    statementDate: statement.statementDate?.toISOString() ?? null,
+    startDate: statement.startDate?.toISOString() ?? null,
+    endDate: statement.endDate?.toISOString() ?? null,
+    dueDate: statement.dueDate?.toISOString() ?? null,
+    statementBalance: Number(statement.statementBalance),
+    minimumPayment: statement.minimumPayment !== null ? Number(statement.minimumPayment) : null,
+    totalPayment: Number(statement.totalPayment),
+    isPaid: statement.isPaid,
+    paidAt: statement.paidAt?.toISOString() ?? null,
+    createdAt: statement.createdAt?.toISOString() ?? null,
+    createdById: statement.createdById,
+  };
+}
 
 /**
  * Create a new account
@@ -28,7 +72,7 @@ export async function createAccount(data: {
     });
 
     revalidatePath("/");
-    return { success: true, data: account };
+    return { success: true, data: serializeAccount(account) };
   } catch (error) {
     if (error instanceof Error) {
       return { success: false, error: error.message };
@@ -71,7 +115,7 @@ export async function updateAccount(data: {
     });
 
     revalidatePath("/");
-    return { success: true, data: account };
+    return { success: true, data: serializeAccount(account) };
   } catch (error) {
     if (error instanceof Error) {
       return { success: false, error: error.message };
@@ -283,7 +327,7 @@ export async function generateStatement(data: {
     });
 
     revalidatePath("/");
-    return { success: true, data: statement };
+    return { success: true, data: serializeStatement(statement) };
   } catch (error) {
     console.error("generateStatement error:", error);
     if (error instanceof Error) {
@@ -353,7 +397,7 @@ export async function getCurrentStatement(accountId: string, userId: string) {
       orderBy: { statementDate: "desc" },
     });
 
-    return { success: true, data: statement };
+    return { success: true, data: statement ? serializeStatement(statement) : null };
   } catch (error) {
     console.error("getCurrentStatement error:", error);
     if (error instanceof Error) {
@@ -373,12 +417,167 @@ export async function getAccountStatements(accountId: string, userId: string) {
       orderBy: { statementDate: "desc" },
     });
 
-    return { success: true, data: statements };
+    return { success: true, data: statements.map(serializeStatement) };
   } catch (error) {
     console.error("getAccountStatements error:", error);
     if (error instanceof Error) {
       return { success: false, error: error.message };
     }
     return { success: false, error: "Failed to get statements" };
+  }
+}
+
+// ============================================
+// RECONCILIATION ENGINE (BALANCE SYNC)
+// ============================================
+
+/**
+ * Sync account balance with actual bank balance
+ * Creates a corrective reconciliation transaction for the difference
+ * 
+ * @param accountId - Account to reconcile
+ * @param actualBalance - The actual balance from the bank/statement
+ * @param effectiveDate - Date for the reconciliation transaction (YYYY-MM-DD)
+ * @param reason - Optional reason for the reconciliation
+ * @param userId - User ID for ownership
+ */
+export async function syncAccountBalance(data: {
+  accountId: string;
+  actualBalance: number;
+  effectiveDate: string; // YYYY-MM-DD
+  reason?: string;
+  userId: string;
+}) {
+  try {
+    const { accountId, actualBalance, effectiveDate, reason, userId } = data;
+
+    // Get account and verify ownership
+    const account = await db.account.findFirst({
+      where: { id: accountId, createdById: userId },
+    });
+
+    if (!account) {
+      throw new Error("Account not found");
+    }
+
+    const currentBalance = Number(account.balance);
+    const delta = actualBalance - currentBalance;
+
+    // If no difference, return success no-op
+    if (delta === 0) {
+      return {
+        success: true,
+        message: "Balance already matches. No reconciliation needed.",
+        delta: 0,
+        transactionId: null,
+      };
+    }
+
+    // Get or create SYSTEM_RECONCILIATION category
+    const categoryResult = await getOrCreateSystemReconciliationCategory(userId);
+    if (!categoryResult.success || !categoryResult.data) {
+      throw new Error("Failed to get reconciliation category");
+    }
+    const categoryId = categoryResult.data.id;
+
+    const effectiveDateTime = new Date(effectiveDate);
+
+    // Determine transaction type based on account type and delta
+    // CASH/E_WALLET/INVESTMENT: delta > 0 => INCOME, delta < 0 => EXPENSE
+    // CREDIT_CARD: delta > 0 => EXPENSE (debt increased), delta < 0 => INCOME (debt decreased)
+    let txType: "INCOME" | "EXPENSE";
+    let fromAccountId: string | null = null;
+    let toAccountId: string | null = null;
+
+    if (account.type === "CREDIT_CARD") {
+      // Credit card: balance = debt
+      if (delta > 0) {
+        // Debt increased = EXPENSE
+        txType = "EXPENSE";
+        fromAccountId = accountId;
+      } else {
+        // Debt decreased = INCOME
+        txType = "INCOME";
+        toAccountId = accountId;
+      }
+    } else {
+      // Asset accounts: balance = asset
+      if (delta > 0) {
+        // Asset increased = INCOME
+        txType = "INCOME";
+        toAccountId = accountId;
+      } else {
+        // Asset decreased = EXPENSE
+        txType = "EXPENSE";
+        fromAccountId = accountId;
+      }
+    }
+
+    // Execute atomic transaction: create reconciliation tx + update balance + audit log
+    await db.$transaction(async (tx) => {
+      // Create reconciliation transaction
+      await tx.transaction.create({
+        data: {
+          amount: Math.abs(delta),
+          type: txType,
+          description: `Balance Reconciliation: ${reason || "System sync"}`,
+          categoryId,
+          fromAccountId,
+          toAccountId,
+          date: effectiveDateTime,
+          isReconciliation: true,
+          createdById: userId,
+          metadata: {
+            beforeBalance: currentBalance,
+            afterBalance: actualBalance,
+            delta,
+            reason: reason || "System sync",
+          },
+        },
+      });
+
+      // Update account balance
+      await tx.account.update({
+        where: { id: accountId },
+        data: {
+          balance: actualBalance,
+          updatedById: userId,
+        },
+      });
+
+      // Write audit log
+      await tx.auditLog.create({
+        data: {
+          action: "BALANCE_RECONCILIATION",
+          model: "Account",
+          recordId: accountId,
+          payload: {
+            beforeBalance: currentBalance,
+            afterBalance: actualBalance,
+            delta,
+            reason: reason || "System sync",
+            effectiveDate: effectiveDate,
+          },
+          reason: reason || "Balance synchronization",
+          createdById: userId,
+        },
+      });
+    });
+
+    revalidatePath("/");
+    revalidatePath("/settings");
+
+    return {
+      success: true,
+      message: `Balance reconciled. Delta: ${delta > 0 ? "+" : ""}${delta}`,
+      delta,
+      transactionType: txType,
+    };
+  } catch (error) {
+    console.error("syncAccountBalance error:", error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: "Failed to sync account balance" };
   }
 }

@@ -5,9 +5,10 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Drawer } from "vaul";
 import { useForm } from "react-hook-form";
-import { Plus, X, Camera, Upload } from "lucide-react";
+import { Plus, X, Camera, AlertTriangle } from "lucide-react";
 import { createTransaction } from "../server/actions";
 import { parseReceiptImage } from "../server/ai-actions";
+import { transferFromDepositWithPenalty } from "../server/deposit-actions";
 import { CategorySearch } from "./CategorySearch";
 import { Decimal } from "@prisma/client/runtime/library";
 
@@ -16,6 +17,10 @@ interface Account {
   name: string;
   type: string;
   balance: number | Decimal;
+  // TIME_DEPOSIT fields for early withdrawal detection
+  productType?: "FLEXI" | "TIME_DEPOSIT" | null;
+  depositTermMonths?: number | null;
+  depositStartDate?: string | null; // ISO date string
 }
 
 interface QuickLogDrawerProps {
@@ -31,6 +36,7 @@ interface FormData {
   categoryId?: string;
   description?: string;
   date: string; // ISO date format YYYY-MM-DD
+  penaltyAmount?: string;
 }
 
 export function QuickLogDrawer({ accounts, categories }: QuickLogDrawerProps) {
@@ -38,6 +44,9 @@ export function QuickLogDrawer({ accounts, categories }: QuickLogDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [isEarlyWithdrawal, setIsEarlyWithdrawal] = useState(false);
+  const [maturityDate, setMaturityDate] = useState<Date | null>(null);
+  const [netTransfer, setNetTransfer] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const amountInputRef = useRef<HTMLInputElement>(null);
 
@@ -55,11 +64,72 @@ export function QuickLogDrawer({ accounts, categories }: QuickLogDrawerProps) {
       accountId: "",
       toAccountId: "",
       date: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD
+      penaltyAmount: "",
     },
   });
 
   const transactionType = watch("type");
   const fromAccountId = watch("accountId");
+  const amount = watch("amount");
+  const date = watch("date");
+  const penaltyAmount = watch("penaltyAmount");
+
+  // Early TIME_DEPOSIT withdrawal detection using selected transfer date
+  useEffect(() => {
+    if (!fromAccountId || transactionType !== "TRANSFER" || !date) {
+      setIsEarlyWithdrawal(false);
+      setMaturityDate(null);
+      setNetTransfer(null);
+      return;
+    }
+
+    // Find source account from accounts prop
+    const sourceAccount = accounts.find(acc => acc.id === fromAccountId);
+    if (!sourceAccount) {
+      setIsEarlyWithdrawal(false);
+      setMaturityDate(null);
+      setNetTransfer(null);
+      return;
+    }
+
+    // Check if source is INVESTMENT with TIME_DEPOSIT
+    if (sourceAccount.productType !== "TIME_DEPOSIT") {
+      setIsEarlyWithdrawal(false);
+      setMaturityDate(null);
+      setNetTransfer(null);
+      return;
+    }
+
+    // Compute maturity date from depositStartDate + depositTermMonths
+    if (!sourceAccount.depositStartDate || !sourceAccount.depositTermMonths) {
+      setIsEarlyWithdrawal(false);
+      setMaturityDate(null);
+      setNetTransfer(null);
+      return;
+    }
+
+    const depositStartDate = new Date(sourceAccount.depositStartDate);
+    const termMonths = sourceAccount.depositTermMonths;
+    const transferDate = new Date(date);
+
+    // Compute maturity: depositStartDate + termMonths
+    const maturity = new Date(depositStartDate);
+    maturity.setMonth(maturity.getMonth() + termMonths);
+
+    setMaturityDate(maturity);
+
+    // Early withdrawal if transfer date is before maturity
+    const isEarly = transferDate < maturity;
+    setIsEarlyWithdrawal(isEarly);
+
+    if (isEarly && amount) {
+      const amt = parseFloat(amount);
+      const penalty = penaltyAmount ? parseFloat(penaltyAmount) : 0;
+      setNetTransfer(amt - penalty);
+    } else {
+      setNetTransfer(null);
+    }
+  }, [fromAccountId, transactionType, date, amount, penaltyAmount, accounts]);
 
   // Auto-focus amount field when drawer opens
   useEffect(() => {
@@ -138,6 +208,32 @@ export function QuickLogDrawer({ accounts, categories }: QuickLogDrawerProps) {
         return;
       }
 
+      // Route early TIME_DEPOSIT withdrawal to specialized handler
+      if (isEarlyWithdrawal && data.type === 'TRANSFER') {
+        const penalty = data.penaltyAmount ? parseFloat(data.penaltyAmount) : 0;
+        const result = await transferFromDepositWithPenalty({
+          fromAccountId: data.accountId,
+          toAccountId: data.toAccountId!,
+          amount: parseFloat(data.amount),
+          penaltyAmount: penalty,
+          description: data.description,
+          date: data.date,
+          userId: "user_123",
+        });
+
+        if (result.success) {
+          alert(`✅ Early withdrawal processed! Net transfer: Rp ${result.netTransfer?.toLocaleString('id-ID')}`);
+          setIsOpen(false);
+          reset();
+          router.refresh();
+        } else {
+          alert('❌ ' + result.error);
+        }
+        setIsProcessing(false);
+        return;
+      }
+
+      // Standard flow for all other transactions
       const result = await createTransaction({
         amount: parseFloat(data.amount),
         type: data.type,
@@ -368,6 +464,58 @@ export function QuickLogDrawer({ accounts, categories }: QuickLogDrawerProps) {
                     <p className="text-rose-400 text-xs mt-2 font-medium">
                       {errors.toAccountId.message}
                     </p>
+                  )}
+                </div>
+              )}
+
+              {/* Early Withdrawal Warning Panel (TIME_DEPOSIT only) */}
+              {isEarlyWithdrawal && (
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5 space-y-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle size={20} className="text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="text-sm font-bold text-amber-400 uppercase tracking-wider">
+                        Early Withdrawal Detected
+                      </h4>
+                      <p className="text-xs text-zinc-400 mt-1">
+                        This time deposit matures on {maturityDate?.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}. 
+                        Early withdrawal incurs a penalty.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Penalty Amount Field */}
+                  <div>
+                    <label className="text-zinc-500 text-xs font-semibold uppercase tracking-widest mb-2 block">
+                      Penalty Amount (IDR)
+                    </label>
+                    <input
+                      {...register("penaltyAmount")}
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="0"
+                      className="w-full bg-zinc-900/50 border border-white/10 p-4 rounded-2xl text-white outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all placeholder:text-zinc-600"
+                    />
+                  </div>
+
+                  {/* Net Transfer Display */}
+                  {netTransfer !== null && (
+                    <div className="bg-zinc-900/50 border border-white/5 rounded-xl p-4">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-zinc-400 uppercase tracking-wider text-xs">Gross Amount</span>
+                        <span className="text-zinc-300 font-semibold">Rp {parseFloat(amount || '0').toLocaleString('id-ID')}</span>
+                      </div>
+                      {penaltyAmount && parseFloat(penaltyAmount) > 0 && (
+                        <div className="flex items-center justify-between text-sm mt-2">
+                          <span className="text-zinc-400 uppercase tracking-wider text-xs">Penalty</span>
+                          <span className="text-rose-400 font-semibold">-Rp {parseFloat(penaltyAmount).toLocaleString('id-ID')}</span>
+                        </div>
+                      )}
+                      <div className="border-t border-white/10 mt-3 pt-3 flex items-center justify-between">
+                        <span className="text-zinc-400 uppercase tracking-wider text-xs font-bold">Net Transfer</span>
+                        <span className="text-emerald-400 font-bold text-lg">Rp {netTransfer.toLocaleString('id-ID')}</span>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}

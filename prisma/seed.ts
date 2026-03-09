@@ -22,6 +22,12 @@ async function main() {
     { name: 'GROCERIES', color: '#f97316' },
     { name: 'SALARY', color: '#10b981' },
     { name: 'INVESTMENT', color: '#6366f1' },
+    { name: 'PLASTIC REVENUE', color: '#06b6d4' },  // For business tax calculation
+    { name: 'AFFILIATE', color: '#8b5cf6' },
+    { name: 'AFFILIATE COST', color: '#f43f5e' },
+    { name: 'INTEREST INCOME', color: '#10b981' },  // For interest postings
+    { name: 'INTEREST TAX WITHHELD', color: '#f59e0b' },  // For tax on interest
+    { name: 'DEPOSIT PENALTY', color: '#f43f5e' },  // For early withdrawal penalty
     { name: 'OTHER', color: '#6b7280' },
   ];
 

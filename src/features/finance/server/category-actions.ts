@@ -5,6 +5,45 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 
 /**
+ * Get or create the reserved SYSTEM_RECONCILIATION category
+ * Used for balance sync/corrective transactions
+ * Uses atomic upsert to prevent race conditions
+ */
+export async function getOrCreateSystemReconciliationCategory(userId: string) {
+  const categoryName = "SYSTEM_RECONCILIATION";
+
+  try {
+    // Atomic upsert using unique constraint: name_createdById
+    const category = await db.category.upsert({
+      where: {
+        name_createdById: {
+          name: categoryName,
+          createdById: userId,
+        },
+      },
+      create: {
+        name: categoryName,
+        color: "#f59e0b", // Amber color to indicate system action
+        icon: "Settings",
+        createdById: userId,
+      },
+      update: {}, // No-op update, just return existing
+    });
+
+    // Determine if it was created by checking if it existed before
+    // Since upsert doesn't return this info, we return created: false to be safe
+    // (The category either existed or was created, both are success cases)
+    return { success: true, data: category, created: false };
+  } catch (error) {
+    console.error("getOrCreateSystemReconciliationCategory error:", error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message, created: false };
+    }
+    return { success: false, error: "Failed to get/create reconciliation category", created: false };
+  }
+}
+
+/**
  * Create a new category
  */
 export async function createCategory(data: {

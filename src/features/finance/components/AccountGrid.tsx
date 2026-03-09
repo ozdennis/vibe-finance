@@ -53,7 +53,10 @@ const toNumber = (val: number | Decimal | null | undefined): number => {
 };
 
 export function AccountGrid({ accounts }: AccountGridProps) {
-  if (accounts.length === 0) {
+  // Filter out INVESTMENT accounts - they're shown in InvestmentShelf
+  const liquidAccounts = accounts.filter(a => a.type !== "INVESTMENT");
+
+  if (liquidAccounts.length === 0) {
     return (
       <div className="text-center py-8 text-slate-500 text-sm">
         No accounts yet. Add your first account to get started.
@@ -62,7 +65,7 @@ export function AccountGrid({ accounts }: AccountGridProps) {
   }
 
   // Group accounts by type
-  const groupedAccounts = accounts.reduce((acc, account) => {
+  const groupedAccounts = liquidAccounts.reduce((acc, account) => {
     if (!acc[account.type]) {
       acc[account.type] = [];
     }

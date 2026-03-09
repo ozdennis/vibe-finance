@@ -5,6 +5,28 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 
 /**
+ * Serialize CreditCardStatement to plain JSON-safe object
+ * Converts Decimal and Date objects to primitives
+ */
+function serializeStatement(statement: any) {
+  return {
+    id: statement.id,
+    accountId: statement.accountId,
+    statementDate: statement.statementDate?.toISOString() ?? null,
+    startDate: statement.startDate?.toISOString() ?? null,
+    endDate: statement.endDate?.toISOString() ?? null,
+    dueDate: statement.dueDate?.toISOString() ?? null,
+    statementBalance: Number(statement.statementBalance),
+    minimumPayment: statement.minimumPayment !== null ? Number(statement.minimumPayment) : null,
+    totalPayment: Number(statement.totalPayment),
+    isPaid: statement.isPaid,
+    paidAt: statement.paidAt?.toISOString() ?? null,
+    createdAt: statement.createdAt?.toISOString() ?? null,
+    createdById: statement.createdById,
+  };
+}
+
+/**
  * Generate a new credit card statement
  */
 export async function generateCreditCardStatement(data: {
@@ -54,7 +76,7 @@ export async function generateCreditCardStatement(data: {
     });
 
     revalidatePath("/");
-    return { success: true, data: statement };
+    return { success: true, data: serializeStatement(statement) };
   } catch (error) {
     console.error("generateCreditCardStatement error:", error);
     return { success: false, error: "Failed to generate statement" };
@@ -114,7 +136,7 @@ export async function markStatementAsPaid(data: {
     });
 
     revalidatePath("/");
-    return { success: true, data: updatedStatement };
+    return { success: true, data: serializeStatement(updatedStatement) };
   } catch (error) {
     console.error("markStatementAsPaid error:", error);
     return { success: false, error: "Failed to process payment" };

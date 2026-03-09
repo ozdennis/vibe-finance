@@ -27,6 +27,8 @@ model Account {
   outgoingTransfers Transaction[] @relation("SourceAccount")
   incomingTransfers Transaction[] @relation("TargetAccount")
   statements        CreditCardStatement[]
+  yieldProfile      AccountYieldProfile?
+  interestPostings  InterestPosting[]
 
   // FBA Strict Audit Baseline (Mandatory)
   createdAt    DateTime    @default(now())
@@ -94,6 +96,9 @@ model Transaction {
   taxYear        Int?
   metadata       Json?           // Stores Gemini Vision JSON payload
 
+  // Reconciliation Flag (for system-generated true-up transactions)
+  isReconciliation Boolean       @default(false)
+
   // FBA Strict Audit Baseline (Mandatory)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -104,6 +109,7 @@ model Transaction {
   @@index([fromAccountId])
   @@index([toAccountId])
   @@index([date])
+  @@index([createdById, date])
 }
 
 model AuditLog {
@@ -148,4 +154,97 @@ enum TransactionType {
   INCOME
   EXPENSE
   TRANSFER
+}
+
+enum RateUnit {
+  MONTHLY
+  YEARLY
+}
+
+enum YieldProductType {
+  FLEXI
+  TIME_DEPOSIT
+}
+
+// Yield profile for interest-bearing accounts (CASH and INVESTMENT only)
+model AccountYieldProfile {
+  id                 String            @id @default(cuid())
+  accountId          String            @unique
+  account            Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  // Product type
+  productType        YieldProductType  @default(FLEXI)
+
+  // Interest rate configuration
+  rateValue          Decimal           @db.Decimal(8, 4)  // e.g., 5.50 for 5.5%
+  rateUnit           RateUnit          @default(MONTHLY)  // MONTHLY or YEARLY
+
+  // Tax configuration
+  withholdingTaxRatePct Decimal        @default(0) @db.Decimal(5, 2)  // e.g., 20 for 20%
+
+  // Status
+  accrualStartDate   DateTime          // When interest starts accruing
+  isActive           Boolean           @default(true)
+
+  // Time Deposit fields (nullable, only for TIME_DEPOSIT)
+  depositTermMonths  Int?              // allowed: 1,3,6,12 for TIME_DEPOSIT
+  depositStartDate   DateTime?
+  depositPrincipal   Decimal?          @db.Decimal(19, 4)
+
+  // Audit
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  createdById        String
+  updatedById        String?
+
+  @@index([accountId])
+  @@index([createdById])
+  @@index([productType])
+}
+
+// Interest posting ledger (idempotent monthly postings)
+model InterestPosting {
+  id              String    @id @default(cuid())
+  accountId       String
+  account         Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  year            Int
+  month           Int       // 1-12
+
+  // Interest amounts
+  grossInterest   Decimal   @db.Decimal(19, 4)
+  taxWithheld     Decimal   @db.Decimal(19, 4)
+  netInterest     Decimal   @db.Decimal(19, 4)
+
+  // Links to created transactions
+  grossTxId       String?   // Transaction ID for gross interest income
+  taxTxId         String?   // Transaction ID for tax withheld expense
+
+  // Metadata
+  postedAt        DateTime  @default(now())
+  isEstimated     Boolean   @default(false)  // True if MTD estimate, false if actual posting
+
+  // Audit
+  createdAt       DateTime  @default(now())
+  createdById     String
+
+  @@unique([accountId, year, month])
+  @@index([accountId])
+  @@index([createdById])
+}
+
+// Tax year settings for withheld tax YTD tracking
+model TaxYearSetting {
+  id              String    @id @default(cuid())
+  createdById     String
+  year            Int
+  
+  // Withheld tax YTD (manual input)
+  withheldTaxYtd  Decimal   @default(0) @db.Decimal(19, 4)
+  
+  // Audit
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@unique([createdById, year])
+  @@index([createdById])
 }

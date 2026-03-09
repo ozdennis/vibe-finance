@@ -6,6 +6,7 @@ import { TrendingUp, TrendingDown } from "lucide-react";
 interface MonthlyTrendChartProps {
   userId: string;
   months?: number;
+  period?: { month?: number; year?: number };
 }
 
 interface MonthlyData {
@@ -14,11 +15,11 @@ interface MonthlyData {
   expense: number;
 }
 
-export async function MonthlyTrendChart({ userId, months = 6 }: MonthlyTrendChartProps) {
+export async function MonthlyTrendChart({ userId, months = 6, period }: MonthlyTrendChartProps) {
   let trendData: MonthlyData[] = [];
 
   try {
-    trendData = await getMonthlyTrend(userId, months);
+    trendData = await getMonthlyTrend(userId, months, period);
   } catch (error) {
     console.error("Failed to load monthly trend:", error);
   }

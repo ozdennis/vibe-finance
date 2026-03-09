@@ -1,327 +1,163 @@
-# Vibe Finance - Project Index
+﻿# Project Index
+
+- Workspace: `F:/Work/Gemini Finance`
+- Generated: 2026-03-09 17:32:07 +07:00
+- Excludes: `.git`, `.next`, `node_modules`, `playwright-report`
+
+## Top-Level Directories
+- `.qwen/`
+- `.vercel/`
+- `prisma/`
+- `public/`
+- `src/`
+- `tests/`
+
+## Top-Level Files
+- `.env`
+- `.env.example`
+- `.env.local`
+- `.gitignore`
+- `build.log`
+- `CREDIT_CARD_BUG_FIX.md`
+- `Design Brief_Vibe-Finance Mobile Command.md`
+- `FBA Folder Structure.md`
+- `gemini_finance.prisma`
+- `manifest.json`
+- `Master PRD_Vibe-Finance.md`
+- `MVP Preview.md`
+- `next.config.js`
+- `next-env.d.ts`
+- `package.json`
+- `package-lock.json`
+- `playwright.config.ts`
+- `postcss.config.js`
+- `PROJECT_INDEX.md`
+- `QWEN.md`
+- `start.bat`
+- `The Master Orchestration.md`
+- `tsc.log`
+- `tsconfig.json`
+- `tsconfig.tsbuildinfo`
+- `vercel.json`
+- `Vibe-Finance Build Plan.md`
+
+## Source Files (`src/`)
+- `src/app/api/settings-data/route.ts`
+- `src/app/audit/page.tsx`
+- `src/app/globals.css`
+- `src/app/layout.tsx`
+- `src/app/loading.tsx`
+- `src/app/page.tsx`
+- `src/app/settings/page.tsx`
+- `src/app/share/route.ts`
+- `src/app/statements/page.tsx`
+- `src/features/finance/components/AccountGrid.tsx`
+- `src/features/finance/components/AccountManager.tsx`
+- `src/features/finance/components/AuditLogViewer.tsx`
+- `src/features/finance/components/CategoryManager.tsx`
+- `src/features/finance/components/CategorySearch.tsx`
+- `src/features/finance/components/CreditCardStatementManager.tsx`
+- `src/features/finance/components/CreditCardWidget.tsx`
+- `src/features/finance/components/Dashboard.tsx`
+- `src/features/finance/components/ErrorBoundary.tsx`
+- `src/features/finance/components/MonthlyTrendChart.tsx`
+- `src/features/finance/components/NetLiquidityHero.tsx`
+- `src/features/finance/components/PWAProvider.tsx`
+- `src/features/finance/components/QuickLogDrawer.tsx`
+- `src/features/finance/components/TaxMeter.tsx`
+- `src/features/finance/components/TransactionHistory.tsx`
+- `src/features/finance/constants/schemas.ts`
+- `src/features/finance/hooks/useBalanceTracking.ts`
+- `src/features/finance/lib/utils.ts`
+- `src/features/finance/server/account-actions.ts`
+- `src/features/finance/server/actions.ts`
+- `src/features/finance/server/ai-actions.ts`
+- `src/features/finance/server/category-actions.ts`
+- `src/features/finance/server/queries.ts`
+- `src/features/finance/server/statement-actions.ts`
+- `src/features/finance/server/transaction-actions.ts`
+- `src/features/finance/services/FinanceService.ts`
+- `src/lib/db.ts`
+
+## Prisma Files (`prisma/`)
+- `prisma/schema.prisma`
+- `prisma/schema/finance.prisma`
+- `prisma/seed.ts`
+
+## Public Assets (`public/`)
+- `public/icon-192.png.txt`
+- `public/icon-512.png.txt`
+- `public/manifest.json`
+- `public/offline.html`
+- `public/sw.js`
+
+## Tests (`tests/`)
+- `tests/app.spec.ts`
+- `tests/bulk-delete.spec.ts`
+- `tests/check-accounts.cjs`
+- `tests/check-db.cjs`
+- `tests/check-transactions.cjs`
+- `tests/core-features.spec.ts`
+- `tests/credit-card-deletion.spec.ts`
+- `tests/Design Brief (Dashboard Expansion).md`
+- `tests/Master PRD.md`
+- `tests/screenshots/00-loading-state.png`
+- `tests/screenshots/01-dashboard.png`
+- `tests/screenshots/01-dashboard-empty.png`
+- `tests/screenshots/01-dashboard-hero.png`
+- `tests/screenshots/02-account-grid.png`
+- `tests/screenshots/02-settings.png`
+- `tests/screenshots/03-income-created.png`
+- `tests/screenshots/03-quick-log.png`
+- `tests/screenshots/03-quick-log-drawer.png`
+- `tests/screenshots/04-expense-created.png`
+- `tests/screenshots/04-income-selected.png`
+- `tests/screenshots/05-settings-accounts.png`
+- `tests/screenshots/05-transfer-selected.png`
+- `tests/screenshots/06-settings-categories.png`
+- `tests/screenshots/06-transactions-list.png`
+- `tests/screenshots/07-tax-projection.png`
+- `tests/screenshots/08-category-search.png`
+- `tests/screenshots/08-final-balances.png`
+- `tests/screenshots/09-add-account-modal.png`
+- `tests/screenshots/09-category-fuzzy-search.png`
+- `tests/screenshots/09-category-selected.png`
+- `tests/screenshots/10-receipt-scan-button.png`
+- `tests/screenshots/11-transaction-history.png`
+- `tests/screenshots/12-edit-transaction-modal.png`
+- `tests/screenshots/13-monthly-trend-chart.png`
+- `tests/screenshots/14-category-before-submit.png`
+- `tests/screenshots/14-category-double-submit.png`
+- `tests/screenshots/15-statements-page.png`
+- `tests/screenshots/17-tax-projection.png`
+- `tests/screenshots/18-audit-page.png`
+- `tests/screenshots/19-pwa-manifest.png`
+- `tests/screenshots/21-statements-page.png`
+- `tests/screenshots/22-dashboard-swr.png`
+- `tests/screenshots/cc-delete-01-initial.png`
+- `tests/screenshots/cc-delete-02-after-add.png`
+- `tests/screenshots/cc-delete-03-after-delete.png`
+- `tests/screenshots/cc-delete-04-balance-verify.png`
+- `tests/screenshots/cc-delete-05-dashboard-verify.png`
+- `tests/screenshots/direct-api-result.png`
+- `tests/screenshots/test-income-result.png`
+- `tests/Task List (Stage 3 Scoping).md`
+
+## Documentation (`*.md` at root)
+- `CREDIT_CARD_BUG_FIX.md`
+- `Design Brief_Vibe-Finance Mobile Command.md`
+- `FBA Folder Structure.md`
+- `Master PRD_Vibe-Finance.md`
+- `MVP Preview.md`
+- `PROJECT_INDEX.md`
+- `QWEN.md`
+- `The Master Orchestration.md`
+- `Vibe-Finance Build Plan.md`
+
+## Stats
+- Total indexed files: 124
+- Source files (`src/`): 36
+- Test files (`tests/`): 50
+- Prisma files (`prisma/`): 3
+- Public assets (`public/`): 5
 
-> Auto-generated project structure index  
-> Last updated: 2026-03-07
-
----
-
-## Project Overview
-
-**Vibe Finance** is a mobile-first personal wealth operating system built with Next.js 16, Prisma 6, and Tailwind CSS 4. It provides real-time net liquidity tracking to solve "balance delusion" by aggregating cash, e-wallets, and credit card debt.
-
----
-
-## Directory Structure
-
-```
-f:\Work\Gemini Finance\
-├───.next/                    # Next.js build output
-├───.qwen/                    # Qwen Code configuration
-├───node_modules/             # Dependencies
-├───playwright-report/        # Test reports
-├───prisma/                   # Database schema & seeding
-├───public/                   # Static assets & PWA files
-├───src/                      # Source code
-│   ├───app/                  # Next.js App Router
-│   ├───features/             # Feature-based modules
-│   └───lib/                  # Shared utilities
-└───tests/                    # Playwright tests
-```
-
----
-
-## Configuration Files
-
-| File | Purpose |
-|------|---------|
-| `package.json` | Dependencies & scripts |
-| `tsconfig.json` | TypeScript configuration |
-| `next.config.js` | Next.js configuration |
-| `postcss.config.js` | PostCSS configuration |
-| `playwright.config.ts` | E2E test configuration |
-| `vercel.json` | Vercel deployment config |
-| `manifest.json` | PWA manifest |
-| `.env.example` | Environment variables template |
-
----
-
-## Documentation Files
-
-| File | Purpose |
-|------|---------|
-| `QWEN.md` | **Primary project context & conventions** |
-| `Master PRD_Vibe-Finance.md` | Product Requirements Document |
-| `Design Brief_Vibe-Finance Mobile Command.md` | Design specifications |
-| `FBA Folder Structure.md` | Feature-Based Architecture guide |
-| `Vibe-Finance Build Plan.md` | Build roadmap & phases |
-| `MVP Preview.md` | MVP feature overview |
-| `The Master Orchestration.md` | Orchestration patterns |
-| `CREDIT_CARD_BUG_FIX.md` | Bug fix documentation |
-| `PROJECT_INDEX.md` | This file |
-
----
-
-## Database Layer (`/prisma`)
-
-```
-prisma/
-├── schema/
-│   └── finance.prisma        # Finance domain schema
-├── schema.prisma             # Main Prisma schema (imports finance)
-└── seed.ts                   # Database seeding script
-```
-
-### Core Models
-
-- **Account** - Cash, E-Wallet, Credit Card, Investment accounts
-- **Transaction** - Income, Expense, Transfer records
-- **Category** - Transaction categorization
-- **AuditLog** - Change tracking for SSOT compliance
-- **CreditCardStatement** - CC statement management
-
----
-
-## Application Layer (`/src/app`)
-
-```
-src/app/
-├── api/
-│   └── settings-data/        # API routes
-├── audit/
-│   └── page.tsx              # Audit log viewer page
-├── settings/
-│   └── page.tsx              # Settings page
-├── statements/
-│   └── page.tsx              # CC statements page
-├── share/
-│   └── route.ts              # Share API route
-├── globals.css               # Global styles
-├── layout.tsx                # Root layout
-├── loading.tsx               # Loading state (Global Skeleton)
-└── page.tsx                  # Home/Dashboard page
-```
-
----
-
-## Feature Layer (`/src/features/finance`)
-
-### Components (`/components`)
-
-| Component | Purpose |
-|-----------|---------|
-| `Dashboard.tsx` | Main dashboard container |
-| `NetLiquidityHero.tsx` | "Real Money" display card |
-| `QuickLogDrawer.tsx` | Mobile transaction input (vaul) |
-| `AccountGrid.tsx` | Horizontal account scrolling |
-| `AccountManager.tsx` | CRUD for accounts |
-| `CategoryManager.tsx` | Category management UI |
-| `CategorySearch.tsx` | Fuzzy category search (fuse.js) |
-| `TransactionHistory.tsx` | Transaction list view |
-| `MonthlyTrendChart.tsx` | Spending trends visualization |
-| `TaxMeter.tsx` | Tax projection widget |
-| `CreditCardWidget.tsx` | CC debt summary |
-| `CreditCardStatementManager.tsx` | Statement management |
-| `AuditLogViewer.tsx` | Audit trail viewer |
-| `PWAProvider.tsx` | PWA configuration provider |
-| `ErrorBoundary.tsx` | Error handling |
-
-### Server Actions (`/server`)
-
-| File | Purpose |
-|------|---------|
-| `actions.ts` | Core transaction mutations |
-| `account-actions.ts` | Account CRUD operations |
-| `transaction-actions.ts` | Transaction operations |
-| `category-actions.ts` | Category operations |
-| `statement-actions.ts` | CC statement operations |
-| `ai-actions.ts` | Gemini receipt parsing |
-| `queries.ts` | Data fetching (Net Liquidity, trends) |
-
-### Services (`/services`)
-
-| File | Purpose |
-|------|---------|
-| `FinanceService.ts` | Business logic, atomic transfers |
-
-### Hooks (`/hooks`)
-
-| File | Purpose |
-|------|---------|
-| `useBalanceTracking.ts` | Balance tracking hook |
-
-### Constants (`/constants`)
-
-| File | Purpose |
-|------|---------|
-| `schemas.ts` | Zod validation schemas |
-
-### Utilities (`/lib`)
-
-| File | Purpose |
-|------|---------|
-| `utils.ts` | Currency formatting, helpers |
-
----
-
-## Shared Layer (`/src/lib`)
-
-| File | Purpose |
-|------|---------|
-| `db.ts` | Prisma client singleton |
-
----
-
-## Static Assets (`/public`)
-
-| File | Purpose |
-|------|---------|
-| `manifest.json` | PWA manifest |
-| `sw.js` | Service worker |
-| `offline.html` | Offline fallback page |
-
----
-
-## Test Layer (`/tests`)
-
-```
-tests/
-├── screenshots/              # Test screenshots
-├── app.spec.ts               # App-level tests
-├── bulk-delete.spec.ts       # Bulk deletion tests
-├── core-features.spec.ts     # Core feature tests
-├── credit-card-deletion.spec.ts # CC deletion tests
-├── check-accounts.cjs        # Account validation script
-├── check-db.cjs              # DB validation script
-└── check-transactions.cjs    # Transaction validation script
-```
-
----
-
-## Key Technologies
-
-| Layer | Technology |
-|-------|------------|
-| Framework | Next.js 16 (App Router) |
-| Language | TypeScript (Strict) |
-| Database ORM | Prisma 6 |
-| Styling | Tailwind CSS 4 |
-| Mobile Wrapper | Capacitor (PWA) |
-| AI | Google Gemini 1.5 Flash |
-| Validation | Zod |
-| Forms | React Hook Form |
-| UI Components | Vaul (drawer), Fuse.js (search) |
-| Testing | Playwright |
-
----
-
-## Architecture Principles
-
-### FBA-SOLID-SSOT
-
-- **Feature-Based Architecture (FBA)**: All finance code in `src/features/finance/`
-- **SOLID**: Single responsibility, open/closed principles
-- **Single Source of Truth (SSOT)**: Full audit trails, soft deletes, no hard deletes
-
-### Audit Trail Requirements
-
-Every model includes:
-
-```prisma
-createdAt    DateTime @default(now())
-updatedAt    DateTime @updatedAt
-createdById  String
-updatedById  String?
-deletedAt    DateTime?  // Soft deletes
-```
-
----
-
-## Build Commands
-
-```bash
-# Install dependencies
-npm install
-
-# Generate Prisma client
-npx prisma generate
-
-# Push schema to database
-npx prisma db push
-
-# Run development server
-npm run dev
-
-# Run tests
-npx playwright test
-
-# Build for production
-npm run build
-```
-
----
-
-## Environment Variables
-
-```env
-DATABASE_URL="postgresql://..."
-GOOGLE_GENERATIVE_AI_API_KEY="..."
-NEXTAUTH_SECRET="..."
-NEXTAUTH_URL="http://localhost:3000"
-```
-
----
-
-## Current Build Status
-
-### Phase 1: Core Architecture ✅
-
-- [x] Prisma schema with audit trails
-- [x] FinanceService atomic transfers
-- [x] Zod validation schemas
-
-### Phase 2: Net Liquidity Dashboard ✅
-
-- [x] NetLiquidityCard component
-- [x] AccountGrid with horizontal scrolling
-- [x] Loading states with skeletons
-
-### Phase 3: Friction Reduction 🚧
-
-- [x] QuickLogDrawer with vaul
-- [x] Numpad trigger (`inputmode="decimal"`)
-- [ ] CategorySearch with fuse.js (pending)
-
-### Phase 4: AI & Tax Logic 🚧
-
-- [ ] Gemini receipt parsing Server Action
-- [ ] TaxProjectionCard component
-- [ ] Linear regression logic
-
----
-
-## Quick Navigation
-
-### By Feature
-
-- **Dashboard**: `src/features/finance/components/Dashboard.tsx`
-- **Net Liquidity**: `src/features/finance/components/NetLiquidityHero.tsx`
-- **Quick Log**: `src/features/finance/components/QuickLogDrawer.tsx`
-- **Accounts**: `src/features/finance/components/AccountManager.tsx`
-- **Transactions**: `src/features/finance/components/TransactionHistory.tsx`
-
-### By Data Layer
-
-- **Schema**: `prisma/schema/finance.prisma`
-- **Queries**: `src/features/finance/server/queries.ts`
-- **Actions**: `src/features/finance/server/actions.ts`
-- **Service**: `src/features/finance/services/FinanceService.ts`
-
-### By Configuration
-
-- **Main Config**: `QWEN.md`
-- **PRD**: `Master PRD_Vibe-Finance.md`
-- **Build Plan**: `Vibe-Finance Build Plan.md`
-
----
-
-*Index generated by Qwen Code*

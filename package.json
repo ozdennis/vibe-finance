@@ -12,7 +12,12 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "db:reset-seed": "prisma migrate reset && tsx prisma/seed.ts"
+    "db:reset-seed": "prisma migrate reset && tsx prisma/seed.ts",
+    "e2e:build": "npm run build",
+    "e2e:test": "node scripts/e2e-runner.js",
+    "e2e": "npm run e2e:build && npm run e2e:test",
+    "e2e:desktop": "npm run e2e:build && npx playwright test tests/stage3-features.spec.ts --project=\"Desktop Chrome\"",
+    "e2e:mobile": "npm run e2e:build && npx playwright test tests/stage3-features.spec.ts --project=\"Mobile Chrome\""
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

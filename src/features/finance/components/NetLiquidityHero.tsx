@@ -5,14 +5,17 @@ interface NetLiquidityHeroProps {
   netLiquidity: number;
   cashTotal: number;
   debtTotal: number;
+  investmentsTotal?: number;
 }
 
 export function NetLiquidityHero({
   netLiquidity,
   cashTotal,
   debtTotal,
+  investmentsTotal = 0,
 }: NetLiquidityHeroProps) {
   const isPositive = netLiquidity >= 0;
+  const totalNetWorth = netLiquidity + investmentsTotal;
 
   return (
     <section className="relative group interactive-card rounded-3xl p-8 md:p-12 mb-10 overflow-hidden flex flex-col items-center justify-center min-h-[300px]">
@@ -21,20 +24,38 @@ export function NetLiquidityHero({
       <div className={`absolute inset-0 bg-gradient-to-b ${isPositive ? 'from-emerald-500/5' : 'from-rose-500/5'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`}></div>
 
       {/* Content */}
-      <div className="relative z-10 flex flex-col items-center">
-        <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-[0.2em] mb-4">
-          Net Liquidity
-        </h2>
+      <div className="relative z-10 flex flex-col items-center w-full">
+        {/* Primary Metric: Net Liquidity */}
+        <div className="flex flex-col items-center mb-6">
+          <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-[0.2em] mb-4">
+            Net Liquidity
+          </h2>
 
-        <div className="relative">
-          <div className={`text-5xl md:text-7xl font-bold tracking-tighter ${isPositive ? "text-emerald-400 text-glow-emerald" : "text-rose-400 text-glow-rose"} transition-all duration-300`}>
-            {formatIDR(netLiquidity)}
+          <div className="relative">
+            <div className={`text-5xl md:text-7xl font-bold tracking-tighter ${isPositive ? "text-emerald-400 text-glow-emerald" : "text-rose-400 text-glow-rose"} transition-all duration-300`}>
+              {formatIDR(netLiquidity)}
+            </div>
           </div>
+
+          <p className="text-sm text-zinc-500 mt-4 font-light tracking-wide">
+            {isPositive ? "Verified Real Money" : "Currently in Debt"}
+          </p>
         </div>
 
-        <p className="text-sm text-zinc-500 mt-4 font-light tracking-wide">
-          {isPositive ? "Verified Real Money" : "Currently in Debt"}
-        </p>
+        {/* Secondary Metric: Total Net Worth (smaller, subtle) */}
+        <div className="flex flex-col items-center py-6 border-t border-white/5 w-full max-w-md">
+          <h3 className="text-zinc-500 text-xs font-medium uppercase tracking-[0.15em] mb-2">
+            Total Net Worth
+          </h3>
+          <div className={`text-2xl md:text-3xl font-bold tracking-tight ${totalNetWorth >= 0 ? "text-white" : "text-rose-300"} transition-colors`}>
+            {formatIDR(totalNetWorth)}
+          </div>
+          {investmentsTotal > 0 && (
+            <p className="text-xs text-zinc-600 mt-1 font-medium">
+              Includes {formatIDR(investmentsTotal)} in investments
+            </p>
+          )}
+        </div>
 
         {/* Breakdown Panel */}
         <div className="flex flex-row justify-center items-center gap-8 md:gap-16 mt-10 pt-8 border-t border-white/5 w-full max-w-lg">
@@ -53,6 +74,18 @@ export function NetLiquidityHero({
               {formatIDR(debtTotal)}
             </span>
           </div>
+
+          {investmentsTotal > 0 && (
+            <>
+              <div className="h-10 w-[1px] bg-white/5"></div>
+              <div className="flex flex-col items-center">
+                <span className="text-zinc-500 text-xs uppercase tracking-wider mb-2">Investments</span>
+                <span className="text-purple-400 font-medium text-lg tracking-tight">
+                  {formatIDR(investmentsTotal)}
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </section>
