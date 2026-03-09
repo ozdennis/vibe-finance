@@ -40,18 +40,14 @@
     "react-dom": "^19.2.4",
     "react-hook-form": "^7.71.2",
     "swr": "^2.4.1",
-    "tailwindcss": "^4.2.1",
     "vaul": "^1.1.2",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
-    "@tailwindcss/postcss": "^4.2.1",
-    "@types/node": "^25.3.5",
     "@types/react": "^19.2.14",
     "dotenv": "^17.3.1",
     "playwright": "^1.58.2",
-    "postcss": "^8.5.8",
     "prisma": "^6.19.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
